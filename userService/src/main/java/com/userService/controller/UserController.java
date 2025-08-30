@@ -2,6 +2,7 @@ package com.userService.controller;
 
 import com.userService.dto.AuthenticationRequestDto;
 import com.userService.dto.AuthenticationResponseDto;
+import com.userService.dto.RefreshTokenRequestDto;
 import com.userService.dto.RegisterRequestDto;
 import com.userService.service.UserService;
 import jakarta.validation.Valid;
@@ -26,6 +27,11 @@ public class UserController {
     @PostMapping("/authenticate")
     public  ResponseEntity<AuthenticationResponseDto> authenticate(@Valid @RequestBody AuthenticationRequestDto request) {
         return new ResponseEntity<>(userService.authenticate(request), HttpStatus.OK);
+    }
+    @PostMapping("/logout")
+    public ResponseEntity<AuthenticationResponseDto> logout(@Valid @RequestBody RefreshTokenRequestDto request) {
+        userService.logout(request.getRefreshToken());
+        return ResponseEntity.noContent().build();
     }
 
 

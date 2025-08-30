@@ -6,26 +6,31 @@ import com.userService.dto.RegisterRequestDto;
 
 import com.userService.model.RefreshToken;
 import com.userService.model.User;
+import com.userService.repository.RefreshTokenRepository;
 import com.userService.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-//    private final RefreshTokenService refreshTokenService;
+    private final RefreshTokenService refreshTokenService;
     @Transactional
     public AuthenticationResponseDto register(RegisterRequestDto requestDto) {
 //        if(userRepository.findByEmail(requestDto.getEmail()).isPresent()) {
@@ -37,10 +42,11 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(requestDto.getPassword()));
         User savedUser = userRepository.save(user);
         //створити токен по користувачу
-//        String jwtToken = jwtService
-        //створити рефреш токену
-//        RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
+        String jwtAccessToken = jwtService.generateToken(savedUser);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
         return AuthenticationResponseDto.builder()
+                .token(jwtAccessToken)
+                .refreshToken(refreshToken.getToken())
                 .userId(savedUser.getId())
                 .username(savedUser.getUsername())
                 .email(savedUser.getEmail())
@@ -60,13 +66,21 @@ public class UserService {
 //            throw new BadRequestException("Invalid email or password.");
         }
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new UsernameNotFoundException("User not found with email: " +request.getEmail()));
-//        token
+        String jwtAccessToken = jwtService.generateToken(user);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
         return AuthenticationResponseDto.builder()
+                .token(jwtAccessToken)
+                .refreshToken(refreshToken.getToken())
                 .userId(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .build();
 
+    }
+    @Transactional
+    public void logout(String token) {
+        Optional<RefreshToken> refreshToken = refreshTokenService.findByToken(token);
+        refreshTokenService.deleteRefreshTokenForUser(refreshToken.get().getId());
     }
 
 }
