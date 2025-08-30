@@ -2,10 +2,12 @@ package com.userService.service;
 
 import com.userService.dto.AuthenticationRequestDto;
 import com.userService.dto.AuthenticationResponseDto;
+import com.userService.dto.RefreshTokenRequestDto;
 import com.userService.dto.RegisterRequestDto;
 
 import com.userService.model.RefreshToken;
 import com.userService.model.User;
+import com.userService.exception.*;
 import com.userService.repository.RefreshTokenRepository;
 import com.userService.repository.UserRepository;
 import jakarta.transaction.Transactional;
@@ -33,15 +35,15 @@ public class UserService {
     private final RefreshTokenService refreshTokenService;
     @Transactional
     public AuthenticationResponseDto register(RegisterRequestDto requestDto) {
-//        if(userRepository.findByEmail(requestDto.getEmail()).isPresent()) {
-//            throw new BadRequestException("User with this email already exists.");
-//        }
+        if(userRepository.findByEmail(requestDto.getEmail()).isPresent()) {
+            throw new BadRequestException("User with this email already exists.");
+        }
         User user = new User();
         user.setUsername(requestDto.getUsername());
         user.setEmail(requestDto.getEmail());
         user.setPassword(passwordEncoder.encode(requestDto.getPassword()));
         User savedUser = userRepository.save(user);
-        //створити токен по користувачу
+
         String jwtAccessToken = jwtService.generateToken(savedUser);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
         return AuthenticationResponseDto.builder()
@@ -63,7 +65,7 @@ public class UserService {
             );
         } catch (AuthenticationException e) {
             System.err.println("Authentication failed for user " + request.getEmail() + ": " + e.getMessage());
-//            throw new BadRequestException("Invalid email or password.");
+            throw new BadRequestException("Invalid email or password.");
         }
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new UsernameNotFoundException("User not found with email: " +request.getEmail()));
         String jwtAccessToken = jwtService.generateToken(user);
@@ -77,10 +79,33 @@ public class UserService {
                 .build();
 
     }
+   @Transactional
+    public AuthenticationResponseDto refreshToken(RefreshTokenRequestDto request) {
+        RefreshToken refreshToken = refreshTokenService.findByToken(request.getRefreshToken())
+                .orElseThrow(() -> new BadRequestException("Refresh token is not in database!"));
+
+        refreshTokenService.verifyExpiration(refreshToken);
+
+        User user = refreshToken.getUser();
+        String newAccessToken = jwtService.generateToken(user);
+
+       return AuthenticationResponseDto.builder()
+               .token(newAccessToken)
+               .refreshToken(refreshToken.getToken())
+               .userId(user.getId())
+               .username(user.getUsername())
+               .email(user.getEmail())
+               .build();
+    }
     @Transactional
-    public void logout(String token) {
-        Optional<RefreshToken> refreshToken = refreshTokenService.findByToken(token);
-        refreshTokenService.deleteRefreshTokenForUser(refreshToken.get().getId());
+    public void logout(String refreshToken) {
+        // Находим refresh token по его значению
+        Optional<RefreshToken> tokenOptional = refreshTokenService.findByToken(refreshToken);
+
+        // Если токен найден, удаляем его
+        if (tokenOptional.isPresent()) {
+            refreshTokenService.delete(tokenOptional.get());
+        }
     }
 
 }

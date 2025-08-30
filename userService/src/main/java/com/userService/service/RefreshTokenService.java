@@ -1,5 +1,8 @@
 package com.userService.service;
 
+
+import com.userService.exception.BadRequestException;
+import com.userService.exception.ResourceNotFoundException;
 import com.userService.model.RefreshToken;
 import com.userService.model.User;
 import com.userService.repository.RefreshTokenRepository;
@@ -22,6 +25,7 @@ public class RefreshTokenService {
     private final RefreshTokenRepository refreshTokenRepository;
 
     private final UserRepository userRepository;
+    private final JwtService jwtService;
     @Transactional
     public RefreshToken createRefreshToken(Long userId) {
 //        User user = userRepository.findById(userId)
@@ -38,14 +42,21 @@ public class RefreshTokenService {
         return refreshTokenRepository.save(refreshToken);
     }
     @Transactional
-    public void deleteRefreshTokenForUser(Long userId) {
-        User user = userRepository.findById(userId).orElse(null);
-//        User user = userRepository.findById(userId)
-//                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
-        refreshTokenRepository.deleteByUser(user);
+    public void delete(RefreshToken refreshToken) {
+        refreshTokenRepository.delete(refreshToken);
     }
+
     @Transactional(readOnly = true)
     public Optional<RefreshToken> findByToken(String token) {
         return refreshTokenRepository.findByToken(token);
+    }
+
+    @Transactional
+    public RefreshToken verifyExpiration(RefreshToken token) {
+        if (token.getExpiryDate().isBefore(Instant.now())) {
+            refreshTokenRepository.delete(token);
+            throw new BadRequestException("Refresh token was expired. Please make a new sign-in request.");
+        }
+        return token;
     }
 }
