@@ -34,17 +34,17 @@ public class User implements UserDetails {
     }
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return null; // В простейшем случае пока можно оставить null или пустой список
+        return null;
     }
 
     @Override
     public String getPassword() {
-        return password; // Возвращаем пароль пользователя
+        return password;
     }
 
     @Override
     public String getUsername() {
-        return email; // В качестве "имени пользователя" используем email
+        return username;
     }
 
     @Override

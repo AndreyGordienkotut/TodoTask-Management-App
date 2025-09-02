@@ -24,10 +24,12 @@ public class UserController {
     public ResponseEntity<AuthenticationResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
         return new ResponseEntity<>(userService.register(request), HttpStatus.OK);
     }
+
     @PostMapping("/authenticate")
-    public  ResponseEntity<AuthenticationResponseDto> authenticate(@Valid @RequestBody AuthenticationRequestDto request) {
+    public ResponseEntity<AuthenticationResponseDto> authenticate(@Valid @RequestBody AuthenticationRequestDto request) {
         return new ResponseEntity<>(userService.authenticate(request), HttpStatus.OK);
     }
+
     @PostMapping("/refresh-token")
     public ResponseEntity<AuthenticationResponseDto> refreshToken(@Valid @RequestBody RefreshTokenRequestDto request) {
         return new ResponseEntity<>(userService.refreshToken(request), HttpStatus.OK);
@@ -39,32 +41,4 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-//
-//
-//    @PostMapping("/authenticate")
-//    public ResponseEntity<AuthenticationResponseDto> authenticate(@Valid @RequestBody AuthenticationRequestDto request) {
-//        return new ResponseEntity<>(authService.authenticate(request), HttpStatus.OK);
-//    }
-//    @PostMapping("/refresh-token")
-//    public ResponseEntity<AuthenticationResponseDto> refreshToken(@Valid @RequestBody RefreshTokenRequestDto request) {
-//        return new ResponseEntity<>(authService.refreshToken(request), HttpStatus.OK);
-//    }
-//    @PostMapping("/logout")
-//    public ResponseEntity<Void> logout(@RequestBody RefreshTokenRequestDto request) {
-//        authService.logout(request.getRefreshToken());
-//        return ResponseEntity.noContent().build();
-//    }
 }

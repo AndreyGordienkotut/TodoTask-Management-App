@@ -28,9 +28,8 @@ public class RefreshTokenService {
     private final JwtService jwtService;
     @Transactional
     public RefreshToken createRefreshToken(Long userId) {
-//        User user = userRepository.findById(userId)
-//                .orElseThrow(() -> new BadRequestException("User not found with ID: " + userId));
-        User user = userRepository.findById(userId).orElse(null);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found with ID: " + userId));
         refreshTokenRepository.findByUser(user).ifPresent(refreshTokenRepository::delete);
 
         RefreshToken refreshToken = RefreshToken.builder()
