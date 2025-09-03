@@ -17,6 +17,7 @@ import java.util.Collections;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@Table(name = "users")
 public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,10 +28,16 @@ public class User implements UserDetails {
     private String email;
     @Column(nullable = false)
     private String password;
+
     public User(User user) {
         this.id = user.getId();
         this.username = user.getEmail();
         this.password = user.getPassword();
+    }
+    public User(String username, String email, String password) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
     }
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
