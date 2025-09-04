@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -35,8 +34,8 @@ public class UserService {
     private final RefreshTokenService refreshTokenService;
     @Transactional
     public AuthenticationResponseDto register(RegisterRequestDto requestDto) {
-        if(userRepository.findByEmail(requestDto.getEmail()).isPresent()) {
-            throw new BadRequestException("User with this email already exists.");
+        if (userRepository.findByEmail(requestDto.getEmail()).isPresent()) {
+            throw new UserAlreadyExistsException("User with this email already exists.");
         }
         User user = new User();
         user.setUsername(requestDto.getUsername());
@@ -99,10 +98,7 @@ public class UserService {
     }
     @Transactional
     public void logout(String refreshToken) {
-        // Находим refresh token по его значению
         Optional<RefreshToken> tokenOptional = refreshTokenService.findByToken(refreshToken);
-
-        // Если токен найден, удаляем его
         if (tokenOptional.isPresent()) {
             refreshTokenService.delete(tokenOptional.get());
         }

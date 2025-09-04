@@ -2,7 +2,6 @@ package com.userService.service;
 
 
 import com.userService.model.User;
-import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,13 +12,11 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.Instant;
-import java.util.Date;
-import java.util.HashMap;
+
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.doReturn;
+
 
 @ExtendWith(MockitoExtension.class)
 public class JwtServiceTest {
@@ -31,8 +28,8 @@ public class JwtServiceTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(jwtService, "secretKey", "404E635266556A586E3272357538782F413F4428472B4B6250655368566D5971");
-        ReflectionTestUtils.setField(jwtService, "jwtExpiration", 1000L); // 1 секунда для теста
-        ReflectionTestUtils.setField(jwtService, "refreshExpiration", 100000L); // 100 секунд
+        ReflectionTestUtils.setField(jwtService, "jwtExpiration", 1000L);
+        ReflectionTestUtils.setField(jwtService, "refreshExpiration", 100000L);
 
         user = new User();
         user.setId(1L);
@@ -47,7 +44,7 @@ public class JwtServiceTest {
     void generateTokenAndExtractUsername() {
         String token = jwtService.generateToken(user);
         assertThat(token).isNotNull();
-        assertThat(jwtService.extractUsername(token)).isEqualTo(user.getEmail());
+        assertThat(jwtService.extractUsername(token)).isEqualTo(user.getUsername());
     }
     @Test
     @DisplayName("Перевірка валідності токена для правильного користувача")
@@ -59,7 +56,6 @@ public class JwtServiceTest {
     @Test
     @DisplayName("extractUsername кидає ExpiredJwtException для простроченого токена")
     void extractUsernameThrowsExceptionForExpiredToken() throws InterruptedException {
-        // Устанавливаем короткий срок годности ТОЛЬКО для этого теста
         ReflectionTestUtils.setField(jwtService, "jwtExpiration", 100L);
         String token = jwtService.generateToken(user);
         Thread.sleep(200);

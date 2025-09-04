@@ -5,6 +5,7 @@ import com.userService.dto.AuthenticationResponseDto;
 import com.userService.dto.RefreshTokenRequestDto;
 import com.userService.dto.RegisterRequestDto;
 import com.userService.exception.BadRequestException;
+import com.userService.exception.UserAlreadyExistsException;
 import com.userService.model.RefreshToken;
 import com.userService.model.User;
 import com.userService.repository.RefreshTokenRepository;
@@ -27,7 +28,6 @@ import java.util.Optional;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
@@ -64,9 +64,6 @@ public class UserServiceTest {
         user.setEmail("test@example.com");
         user.setPassword("encodedPassword");
 
-//        refreshToken = new RefreshToken();
-//        refreshToken.setId(1L);
-//        refreshToken.setToken("mockRefreshToken");
 
         refreshToken = new RefreshToken();
         refreshToken.setToken("validRefreshToken");
@@ -98,7 +95,7 @@ public class UserServiceTest {
     @DisplayName("Тест неуспішної реєстрації через незнаходження користувача")
     void registerUserFail_whenUserAlreadyExists()  {
         when(userRepository.findByEmail(any(String.class))).thenReturn(Optional.of(user));
-        assertThrows(BadRequestException.class, () -> userService.register(registerRequestDto));
+        assertThrows(UserAlreadyExistsException.class, () -> userService.register(registerRequestDto));
 
         verify(userRepository).findByEmail("test@example.com");
     }
