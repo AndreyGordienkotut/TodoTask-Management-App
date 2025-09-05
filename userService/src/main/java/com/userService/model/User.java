@@ -6,15 +6,18 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
+import java.util.Collections;
 
 @Entity
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@Table(name = "users")
 public class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,19 +28,30 @@ public class User implements UserDetails {
     private String email;
     @Column(nullable = false)
     private String password;
+
+    public User(User user) {
+        this.id = user.getId();
+        this.username = user.getEmail();
+        this.password = user.getPassword();
+    }
+    public User(String username, String email, String password) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+    }
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return null; // В простейшем случае пока можно оставить null или пустой список
+        return null;
     }
 
     @Override
     public String getPassword() {
-        return password; // Возвращаем пароль пользователя
+        return password;
     }
 
     @Override
     public String getUsername() {
-        return email; // В качестве "имени пользователя" используем email
+        return username;
     }
 
     @Override

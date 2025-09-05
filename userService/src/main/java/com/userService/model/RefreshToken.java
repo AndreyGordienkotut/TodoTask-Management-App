@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 
 @Entity
+@Table(name = "refresh_token")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,4 +29,5 @@ public class RefreshToken {
     @OneToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id", nullable = false)
     private User user;
+
 }
