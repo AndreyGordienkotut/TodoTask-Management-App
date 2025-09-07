@@ -1,1 +1,8 @@
-rootProject.name = 'task'
+rootProject.name = 'task-management-app'
+
+include 'userService'
+include 'taskService'
+include 'notificationService'
+include 'eureka-server'
+
+

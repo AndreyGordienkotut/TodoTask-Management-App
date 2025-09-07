@@ -1,9 +1,6 @@
 package com.userService.service;
 
-import com.userService.dto.AuthenticationRequestDto;
-import com.userService.dto.AuthenticationResponseDto;
-import com.userService.dto.RefreshTokenRequestDto;
-import com.userService.dto.RegisterRequestDto;
+import com.userService.dto.*;
 
 import com.userService.model.RefreshToken;
 import com.userService.model.User;
@@ -103,5 +100,15 @@ public class UserService {
             refreshTokenService.delete(tokenOptional.get());
         }
     }
+
+//    public UserDto findUserById(String userId) {
+//        return userRepository.findById(Long.valueOf(userId))
+//                .map(user -> UserDto.builder()
+//                        .id(user.getId())
+//                        .name(user.getUsername())
+//                        .email(user.getEmail())
+//                        .build())
+//                .orElse(null);
+//    }
 
 }
