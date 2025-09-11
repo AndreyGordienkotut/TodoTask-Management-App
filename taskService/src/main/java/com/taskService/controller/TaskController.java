@@ -21,12 +21,13 @@ public class TaskController {
     public String createTestTask(@PathVariable Long userId) {
         return taskService.createTestTaskForUser(userId);
     }
-    @PostMapping()
-    public ResponseEntity<TaskResponseDto>  createTask(@RequestBody TaskRequestDto requestDto, Principal principal) {
+    @PostMapping
+    public ResponseEntity<TaskResponseDto> createTask(@RequestBody TaskRequestDto requestDto, Principal principal) {
         Long userId = Long.parseLong(principal.getName());
         TaskResponseDto createdTask = taskService.createTask(requestDto, userId);
         return ResponseEntity.ok(createdTask);
     }
+
     //not work
     @PostMapping("/{id}")
     public ResponseEntity<TaskResponseDto> updateTask(@PathVariable Long id, @RequestBody TaskRequestDto requestDto, Principal principal) {

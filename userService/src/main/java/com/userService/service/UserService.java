@@ -16,6 +16,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -39,8 +41,10 @@ public class UserService {
         user.setEmail(requestDto.getEmail());
         user.setPassword(passwordEncoder.encode(requestDto.getPassword()));
         User savedUser = userRepository.save(user);
-
-        String jwtAccessToken = jwtService.generateToken(savedUser);
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("userId", user.getId());
+        String jwtAccessToken = jwtService.generateToken(extra, user);
+//        String jwtAccessToken = jwtService.generateToken(savedUser);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
         return AuthenticationResponseDto.builder()
                 .token(jwtAccessToken)
@@ -64,7 +68,10 @@ public class UserService {
             throw new BadRequestException("Invalid email or password.");
         }
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new UsernameNotFoundException("User not found with email: " +request.getEmail()));
-        String jwtAccessToken = jwtService.generateToken(user);
+//        String jwtAccessToken = jwtService.generateToken(user);
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("userId", user.getId());
+        String jwtAccessToken = jwtService.generateToken(extra, user);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
         return AuthenticationResponseDto.builder()
                 .token(jwtAccessToken)
