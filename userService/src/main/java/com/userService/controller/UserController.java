@@ -1,6 +1,7 @@
 package com.userService.controller;
 
 import com.userService.dto.*;
+import com.userService.model.User;
 import com.userService.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,20 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+    @GetMapping("/{id}")
+    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
+        UserDto dto = userService.findUserById(String.valueOf(id));
+        if (dto == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(dto);
+    }
+    @GetMapping("/internal/{id}")
+    public ResponseEntity<UserDto> getUserForInternal(@PathVariable Long id) {
+        UserDto dto = userService.findUserById(String.valueOf(id));
+        if (dto == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(dto);
+    }
 
     @PostMapping("/register")
     public ResponseEntity<AuthenticationResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {

@@ -101,14 +101,14 @@ public class UserService {
         }
     }
 
-//    public UserDto findUserById(String userId) {
-//        return userRepository.findById(Long.valueOf(userId))
-//                .map(user -> UserDto.builder()
-//                        .id(user.getId())
-//                        .name(user.getUsername())
-//                        .email(user.getEmail())
-//                        .build())
-//                .orElse(null);
-//    }
+    public UserDto findUserById(String userId) {
+        return userRepository.findById(Long.valueOf(userId))
+                .map(user -> UserDto.builder()
+                        .id(user.getId())
+                        .name(user.getUsername())
+                        .email(user.getEmail())
+                        .build())
+                .orElse(null);
+    }
 
 }

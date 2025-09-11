@@ -1,32 +1,42 @@
+//plugins {
+//    id 'java'
+//    id 'org.springframework.boot' version '3.3.5'
+//	  id 'io.spring.dependency-management' version '1.1.7'
+//}
+//
+//group = 'org.example'
+//version = 'unspecified'
+//
+//repositories {
+//    mavenCentral()
+//    maven { url 'https://repo.spring.io/milestone' }
+//}
+//
+//dependencies {
+//    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-server'
+//    implementation 'org.springframework.boot:spring-boot-starter-web'
+//    compileOnly 'org.projectlombok:lombok'
+//    annotationProcessor 'org.projectlombok:lombok'
+//    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+//    testImplementation platform('org.junit:junit-bom:5.10.0')
+//    testImplementation 'org.junit.jupiter:junit-jupiter'
+//
+//    // Явно добавляем зависимости Jersey, которые нужны для Spring Boot 3.2.x
+//    implementation 'org.glassfish.jersey.core:jersey-server:3.1.5'
+//    implementation 'org.glassfish.jersey.containers:jersey-container-servlet-core:3.1.5'
+//    implementation 'org.glassfish.jersey.media:jersey-media-jaxb:3.1.5'
+//}
+//
+//test {
+//    useJUnitPlatform()
+//}
+
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.5'
-    id 'io.spring.dependency-management' version '1.1.7'
-}
-
-group = 'org.example'
-version = 'unspecified'
-
-repositories {
-    mavenCentral()
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
 }
 
 dependencies {
-    testImplementation platform('org.junit:junit-bom:5.10.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    compileOnly 'org.projectlombok:lombok'
-
-
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.security:spring-security-test'
-
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-server'
-}
-
-test {
-    useJUnitPlatform()
 }
