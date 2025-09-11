@@ -1,5 +1,6 @@
 package com.taskService.dto;
 
+import com.taskService.model.Priority;
 import com.taskService.model.Status;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -25,5 +26,6 @@ public class TaskRequestDto {
     private String description;
     private LocalDate date;
     private Status status;
+    private Priority priority;
 
 }

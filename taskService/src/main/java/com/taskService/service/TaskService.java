@@ -1,15 +1,23 @@
 package com.taskService.service;
 
 import com.taskService.config.UserServiceClient;
-import com.taskService.dto.TaskRequestDto;
-import com.taskService.dto.TaskResponseDto;
-import com.taskService.dto.UserDto;
+import com.taskService.dto.*;
+import com.taskService.exception.ResourceNotFoundException;
+import com.taskService.model.Priority;
+import com.taskService.model.Status;
 import com.taskService.model.Task;
 import com.taskService.repository.TaskRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -18,21 +26,39 @@ public class TaskService {
     //update task
     // delete task
     //get all task
-    //get task in status
+    //get task in status(filtation)
     //post task in another status
 
 
     private final TaskRepository taskRepository;
     private final UserServiceClient userServiceClient;
 
-    public String createTestTaskForUser(Long userId) {
-        UserDto user = userServiceClient.getUserById(userId);
-
-        if (user != null) {
-            return "Task created for user: " + user.getName() + " with email: " + user.getEmail();
-        } else {
-            return "User not found with ID: " + userId;
+    private TaskResponseDto convertToDto(Task task) {
+        return new TaskResponseDto(
+                task.getId(),
+                task.getUserId(),
+                task.getTitle(),
+                task.getDescription(),
+                task.getDate(),
+                task.getStatus(),
+                task.getPriority()
+        );
+    }
+    @Transactional(readOnly=true)
+    public List<TaskResponseDto> getAllTasks(Long userId) {
+        List<Task> tasks = taskRepository.findAllByUserId(userId);
+        return tasks.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    @Transactional(readOnly = true)
+    public TaskResponseDto getTaskById(Long taskId, Long userId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!task.getUserId().equals(userId)) {
+            throw new AccessDeniedException("You don't have permission to view this task");
         }
+        return convertToDto(task);
     }
 
     @Transactional
@@ -43,40 +69,97 @@ public class TaskService {
                 .description(requestDto.getDescription())
                 .date(requestDto.getDate())
                 .status(requestDto.getStatus())
+                .priority(requestDto.getPriority())
                 .build();
         Task savedTask = taskRepository.save(task);
-        return TaskResponseDto.builder()
-                .id(savedTask.getId())
-                .userId(savedTask.getUserId())
-                .title(savedTask.getTitle())
-                .description(savedTask.getDescription())
-                .date(savedTask.getDate())
-                .status(savedTask.getStatus())
-                .build();
+        return convertToDto(savedTask);
     }
 
-    //not work
-    public TaskResponseDto updateTask(TaskRequestDto requestDto, Long userId) {
-        Task existTask = taskRepository.findByUserId(userId).orElseThrow(() -> new RuntimeException("Task not found"));
-
-        existTask.setTitle(requestDto.getTitle());
-        existTask.setDescription(requestDto.getDescription());
-        existTask.setDate(requestDto.getDate());
-        existTask.setStatus(requestDto.getStatus());
+    public TaskResponseDto updateTask(Long taskId, UpdateTaskRequestDto dto, Long userId) {
+        Task existTask = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!existTask.getUserId().equals(userId)) {
+            throw new AccessDeniedException("You don't have permission to update this task");
+        }
+        if (dto.getTitle() != null) existTask.setTitle(dto.getTitle());
+        if (dto.getDescription() != null) existTask.setDescription(dto.getDescription());
+        if (dto.getDate() != null) existTask.setDate(dto.getDate());
         Task savedTask = taskRepository.save(existTask);
-        return TaskResponseDto.builder()
-                .id(savedTask.getId())
-                .userId(savedTask.getUserId())
-                .title(savedTask.getTitle())
-                .description(savedTask.getDescription())
-                .date(savedTask.getDate())
-                .status(savedTask.getStatus())
-                .build();
+
+        return convertToDto(savedTask);
+    }
+    public TaskResponseDto updateStatus(Long taskId, UpdateStatusRequestDto dto, Long userId) {
+        Task existTask = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!existTask.getUserId().equals(userId)) {
+            throw new AccessDeniedException("You don't have permission to update this task");
+        }
+        existTask.setStatus(dto.getStatus());
+        Task savedTask = taskRepository.save(existTask);
+        return convertToDto(savedTask);
+    }
+    public TaskResponseDto updatePriority(Long taskId, UpdatePriorityRequestDto dto, Long userId) {
+        Task existTask = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!existTask.getUserId().equals(userId)) {
+            throw new AccessDeniedException("You don't have permission to update this task");
+        }
+        existTask.setPriority(dto.getPriority());
+        Task savedTask = taskRepository.save(existTask);
+        return convertToDto(savedTask);
+    }
+    public TaskResponseDto  deleteTask(Long taskId, Long userId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!task.getUserId().equals(userId)) {
+            throw new AccessDeniedException("You don't have permission to view this task");
+        }
+        taskRepository.delete(task);
+        return convertToDto(task);
+    }
+    public List<TaskResponseDto> filterTasks(Long userId, Status status, LocalDate fromDate, LocalDate toDate, Priority priority) {
+        Specification<Task> spec = Specification.where(byUserId(userId));
+        if (status != null) {
+            spec = spec.and(byStatus(status));
+        }
+        if (priority != null) {
+            spec = spec.and(byPriority(priority));
+        }
+        if (fromDate != null && toDate != null) {
+            spec = spec.and(byDateBetween(fromDate, toDate));
+        } else if (fromDate != null) {
+            spec = spec.and(byDateFrom(fromDate));
+        } else if (toDate != null) {
+            spec = spec.and(byDateTo(toDate));
+        }
+
+        return taskRepository.findAll(spec).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    private Specification<Task> byUserId(Long userId) {
+        return (root, query, cb) -> cb.equal(root.get("userId"), userId);
     }
 
-    //not work
-    public void deleteTask(Long userId, Long taskId) {
-        Task task = taskRepository.findByUserId(userId).orElseThrow(() -> new RuntimeException("Task not found"));
-        taskRepository.delete(task);
+    private Specification<Task> byStatus(Status status) {
+        return (root, query, cb) -> cb.equal(root.get("status"), status);
     }
+
+    private Specification<Task> byPriority(Priority priority) {
+        return (root, query, cb) -> cb.equal(root.get("priority"), priority);
+    }
+
+    private Specification<Task> byDateBetween(LocalDate from, LocalDate to) {
+        return (root, query, cb) -> cb.between(root.get("date"), from, to);
+    }
+
+    private Specification<Task> byDateFrom(LocalDate from) {
+        return (root, query, cb) -> cb.greaterThanOrEqualTo(root.get("date"), from);
+    }
+
+    private Specification<Task> byDateTo(LocalDate to) {
+        return (root, query, cb) -> cb.lessThanOrEqualTo(root.get("date"), to);
+    }
+
+
 }

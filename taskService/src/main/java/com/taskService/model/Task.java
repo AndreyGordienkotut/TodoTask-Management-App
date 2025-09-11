@@ -32,6 +32,9 @@ public class Task {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Priority priority;
 
 
 }
