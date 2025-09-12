@@ -10,7 +10,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -24,7 +24,8 @@ public class TaskRequestDto {
     private String title;
     @NotBlank(message = "Description is required")
     private String description;
-    private LocalDate date;
+    private LocalDateTime date;
+    private LocalDateTime dueDate;
     private Status status;
     private Priority priority;
 

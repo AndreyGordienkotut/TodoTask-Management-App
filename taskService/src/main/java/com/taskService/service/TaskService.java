@@ -7,6 +7,8 @@ import com.taskService.model.Priority;
 import com.taskService.model.Status;
 import com.taskService.model.Task;
 import com.taskService.repository.TaskRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.Builder;
@@ -40,16 +42,20 @@ public class TaskService {
                 task.getTitle(),
                 task.getDescription(),
                 task.getDate(),
+                task.getDueDate(),
                 task.getStatus(),
                 task.getPriority()
         );
     }
-    @Transactional(readOnly=true)
-    public List<TaskResponseDto> getAllTasks(Long userId) {
-        List<Task> tasks = taskRepository.findAllByUserId(userId);
-        return tasks.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
+    @Transactional(readOnly = true)
+    public Page<TaskResponseDto> getAllTasks(Long userId, Pageable pageable) {
+        Page<Task> tasks = taskRepository.findAllByUserId(userId, pageable);
+        return tasks.map(this::convertToDto);
+    }
+    @Transactional(readOnly = true)
+    public Page<TaskResponseDto> searchTasks(Long userId, String keyword, Pageable pageable) {
+        Page<Task> tasks = taskRepository.searchByKeyword(userId, keyword, pageable);
+        return tasks.map(this::convertToDto);
     }
     @Transactional(readOnly = true)
     public TaskResponseDto getTaskById(Long taskId, Long userId) {
@@ -68,6 +74,7 @@ public class TaskService {
                 .title(requestDto.getTitle())
                 .description(requestDto.getDescription())
                 .date(requestDto.getDate())
+                .dueDate(requestDto.getDueDate())
                 .status(requestDto.getStatus())
                 .priority(requestDto.getPriority())
                 .build();

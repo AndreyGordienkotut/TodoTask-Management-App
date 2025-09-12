@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "task")
@@ -28,13 +29,15 @@ public class Task {
     @Column(nullable = false)
     private String description;
     @Column(nullable = false)
-    private LocalDate date;
+    private LocalDateTime date;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Priority priority;
+    @Column(nullable = true, name = "due_date")
+    private LocalDateTime dueDate;
 
 
 }

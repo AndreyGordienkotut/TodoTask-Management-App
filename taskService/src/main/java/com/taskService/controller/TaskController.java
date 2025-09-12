@@ -3,18 +3,19 @@ package com.taskService.controller;
 import com.taskService.dto.*;
 import com.taskService.model.Priority;
 import com.taskService.model.Status;
-import com.taskService.model.Task;
 import com.taskService.service.TaskService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.security.Principal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -23,10 +24,48 @@ public class TaskController {
 
     private final TaskService taskService;
 
-    @GetMapping()
-    public ResponseEntity<List<TaskResponseDto>> getAllTasks(Principal principal) {
+    @GetMapping
+    public ResponseEntity<Page<TaskResponseDto>> getAllTasks(
+            Principal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(value = "sort", required = false) List<String> sortParams) {
+
         Long userId = Long.parseLong(principal.getName());
-        List<TaskResponseDto> tasks = taskService.getAllTasks(userId);
+
+        if (sortParams == null || sortParams.isEmpty()) {
+            sortParams = List.of("dueDate,asc");
+        }
+        if (sortParams.size() == 2
+                && !sortParams.get(0).contains(",")
+                && (sortParams.get(1).equalsIgnoreCase("asc") || sortParams.get(1).equalsIgnoreCase("desc"))) {
+            sortParams = List.of(sortParams.get(0) + "," + sortParams.get(1));
+        }
+
+        List<Sort.Order> orders = sortParams.stream()
+                .map(s -> {
+                    String[] parts = s.split(",");
+                    String property = parts[0].trim();
+                    Sort.Direction direction = (parts.length > 1 && parts[1].trim().equalsIgnoreCase("desc"))
+                            ? Sort.Direction.DESC : Sort.Direction.ASC;
+                    return new Sort.Order(direction, property);
+                })
+                .collect(Collectors.toList());
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(orders));
+        Page<TaskResponseDto> tasks = taskService.getAllTasks(userId, pageable);
+        return ResponseEntity.ok(tasks);
+    }
+    @GetMapping("/search")
+    public ResponseEntity<Page<TaskResponseDto>> searchTasks(
+            Principal principal,
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(value = "sort", required = false) List<String> sortParams) {
+        Long userId = Long.parseLong(principal.getName());
+        Pageable pageable = PageRequest.of(page, size, Sort.by("dueDate").ascending());
+        Page<TaskResponseDto> tasks = taskService.searchTasks(userId, keyword, pageable);
         return ResponseEntity.ok(tasks);
 
     }
@@ -37,8 +76,6 @@ public class TaskController {
         return ResponseEntity.ok(task);
 
     }
-//    public List<TaskResponseDto> filterTasks(Long userId, Status status, LocalDate fromDate, LocalDate toDate, Priority priority) {
-//        Specification<Task> spec = Specification.where(byUserId(userId));
     @GetMapping("/filter")
     public ResponseEntity<List<TaskResponseDto>> filterTask(
             @RequestParam(required = false) Status status,
