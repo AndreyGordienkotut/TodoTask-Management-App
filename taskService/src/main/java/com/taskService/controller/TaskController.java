@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -113,11 +114,58 @@ public class TaskController {
         TaskResponseDto taskResponseDto = taskService.updatePriority(id, dto, userId);
         return ResponseEntity.ok(taskResponseDto);
     }
-    @DeleteMapping("/{id}")
-    public ResponseEntity<TaskResponseDto> deleteTask(@PathVariable Long id, Principal principal) {
+    @DeleteMapping("/{id}/archive")
+    public ResponseEntity<TaskResponseDto> archiveTask(@PathVariable Long id, Principal principal) {
         Long userId = Long.parseLong(principal.getName());
-        TaskResponseDto deleteTask = taskService.deleteTask(id,userId);
-        return ResponseEntity.ok(deleteTask);
+        TaskResponseDto taskResponseDto = taskService.archiveTask(id, userId);
+        return ResponseEntity.ok(taskResponseDto);
+    }
+
+    @GetMapping("/archived")
+    public ResponseEntity<Page<TaskResponseDto>> getArchivedTasks(
+            Principal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(value = "sort", required = false) List<String> sortParams) {
+
+        Long userId = Long.parseLong(principal.getName());
+
+        if (sortParams == null || sortParams.isEmpty()) {
+            sortParams = List.of("dueDate,asc");
+        }
+        if (sortParams.size() == 2
+                && !sortParams.get(0).contains(",")
+                && (sortParams.get(1).equalsIgnoreCase("asc") || sortParams.get(1).equalsIgnoreCase("desc"))) {
+            sortParams = List.of(sortParams.get(0) + "," + sortParams.get(1));
+        }
+
+        List<Sort.Order> orders = sortParams.stream()
+                .map(s -> {
+                    String[] parts = s.split(",");
+                    String property = parts[0].trim();
+                    Sort.Direction direction = (parts.length > 1 && parts[1].trim().equalsIgnoreCase("desc"))
+                            ? Sort.Direction.DESC : Sort.Direction.ASC;
+                    return new Sort.Order(direction, property);
+                })
+                .toList();
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(orders));
+        Page<TaskResponseDto> tasks = taskService.getArchivedTasks(userId, pageable);
+        return ResponseEntity.ok(tasks);
+    }
+
+    @DeleteMapping("/{id}/permanent")
+    public ResponseEntity<Void> deleteTask(@PathVariable Long id, Principal principal) {
+        Long userId = Long.parseLong(principal.getName());
+        taskService.deleteTask(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+    @DeleteMapping("/bulk")
+    public ResponseEntity<Void> deleteTasks(@RequestBody List<Long> tasksIds,
+                                             Principal principal) {
+        Long userId = Long.parseLong(principal.getName());
+        taskService.deleteTasksBulk(tasksIds,userId);
+        return ResponseEntity.noContent().build();
     }
 
 }

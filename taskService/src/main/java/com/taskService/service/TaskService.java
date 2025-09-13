@@ -24,16 +24,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class TaskService {
-    //createTask + abilities add date and time in task
-    //update task
-    // delete task
-    //get all task
-    //get task in status(filtation)
-    //post task in another status
-
-
     private final TaskRepository taskRepository;
-    private final UserServiceClient userServiceClient;
 
     private TaskResponseDto convertToDto(Task task) {
         return new TaskResponseDto(
@@ -115,14 +106,57 @@ public class TaskService {
         Task savedTask = taskRepository.save(existTask);
         return convertToDto(savedTask);
     }
-    public TaskResponseDto  deleteTask(Long taskId, Long userId) {
+    @Transactional
+    public TaskResponseDto archiveTask(Long taskId, Long userId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!task.getUserId().equals(userId)) {
+            throw new SecurityException("Cannot archive task of another user");
+        }
+        task.setStatus(Status.ARCHIVED);
+        Task savedTask = taskRepository.save(task);
+        return convertToDto(savedTask);
+
+    }
+    @Transactional(readOnly = true)
+    public Page<TaskResponseDto> getArchivedTasks(Long userId, Pageable pageable) {
+        return taskRepository.findAllByUserIdAndStatus(userId,Status.ARCHIVED,pageable)
+                .map(this::convertToDto);
+    }
+    @Transactional(readOnly = true)
+    public Page<TaskResponseDto> getActivedTasks(Long userId, Pageable pageable) {
+        return taskRepository.findAllByUserIdAndStatusNot(userId,Status.ARCHIVED,pageable)
+                .map(this::convertToDto);
+    }
+
+
+    public void  deleteTask(Long taskId, Long userId) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
         if (!task.getUserId().equals(userId)) {
             throw new AccessDeniedException("You don't have permission to view this task");
         }
+        if (task.getStatus() != Status.ARCHIVED) {
+            throw new IllegalStateException("Only archived tasks can be permanently deleted");
+        }
         taskRepository.delete(task);
-        return convertToDto(task);
+
+    }
+    @Transactional
+    public void deleteTasksBulk(List<Long> taskIds, Long userId) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            throw new IllegalArgumentException("Task IDs cannot be empty");
+        }
+        List<Task> tasks = taskRepository.findAllById(taskIds);
+        tasks.forEach(task -> {
+            if (!task.getUserId().equals(userId)) {
+                throw new SecurityException("Cannot delete tasks of another user");
+            }
+            if (task.getStatus() != Status.ARCHIVED) {
+                throw new IllegalStateException("Only archived tasks can be permanently deleted");
+            }
+        });
+        taskRepository.deleteAllInBatch(tasks);
     }
     public List<TaskResponseDto> filterTasks(Long userId, Status status, LocalDate fromDate, LocalDate toDate, Priority priority) {
         Specification<Task> spec = Specification.where(byUserId(userId));

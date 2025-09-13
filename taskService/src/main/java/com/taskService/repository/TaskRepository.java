@@ -30,4 +30,7 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
     Page<Task> searchByKeyword(@Param("userId") Long userId,
                                @Param("keyword") String keyword,
                                Pageable pageable);
+    Page<Task> findAllByUserIdAndStatusNot(Long userId, Status status, Pageable pageable);
+
+    Page<Task> findAllByUserIdAndStatus(Long userId, Status status, Pageable pageable);
 }
