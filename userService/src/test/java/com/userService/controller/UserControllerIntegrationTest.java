@@ -65,7 +65,10 @@ public class UserControllerIntegrationTest {
         registry.add("application.security.jwt.expiration", () -> "3600000");
         registry.add("application.security.jwt.refresh-token.expiration", () -> "604800000");
         registry.add("application.security.jwt.cookie-name", () -> "jwt_token");
+        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+        registry.add("spring.jpa.database-platform", () -> "org.hibernate.dialect.PostgreSQLDialect");
 
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create");
     }
     @BeforeEach
     void setUp() {

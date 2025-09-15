@@ -4,12 +4,14 @@ import com.taskService.dto.*;
 import com.taskService.model.Priority;
 import com.taskService.model.Status;
 import com.taskService.service.TaskService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
@@ -90,10 +92,10 @@ public class TaskController {
     }
 
     @PostMapping
-    public ResponseEntity<TaskResponseDto> createTask(@RequestBody TaskRequestDto requestDto, Principal principal) {
+    public ResponseEntity<TaskResponseDto> createTask(@Valid @RequestBody TaskRequestDto requestDto, Principal principal) {
         Long userId = Long.parseLong(principal.getName());
         TaskResponseDto createdTask = taskService.createTask(requestDto, userId);
-        return ResponseEntity.ok(createdTask);
+        return new ResponseEntity<>(createdTask, HttpStatus.CREATED);
     }
 
     @PatchMapping("/{id}")
