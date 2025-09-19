@@ -26,11 +26,13 @@ dependencies {
 	// loadBalancer
 	implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
+	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
 }
 dependencyManagement {
 	imports {
 		mavenBom 'org.springframework.cloud:spring-cloud-dependencies:2023.0.1'
+
 	}
 }
 test {

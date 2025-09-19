@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -44,7 +43,6 @@ public class UserService {
         Map<String, Object> extra = new HashMap<>();
         extra.put("userId", user.getId());
         String jwtAccessToken = jwtService.generateToken(extra, user);
-//        String jwtAccessToken = jwtService.generateToken(savedUser);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser.getId());
         return AuthenticationResponseDto.builder()
                 .token(jwtAccessToken)
@@ -68,7 +66,6 @@ public class UserService {
             throw new BadRequestException("Invalid email or password.");
         }
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new UsernameNotFoundException("User not found with email: " +request.getEmail()));
-//        String jwtAccessToken = jwtService.generateToken(user);
         Map<String, Object> extra = new HashMap<>();
         extra.put("userId", user.getId());
         String jwtAccessToken = jwtService.generateToken(extra, user);

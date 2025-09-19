@@ -58,10 +58,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
 //                        .requestMatchers("/api/users/**").permitAll()
                         .requestMatchers("/api/tasks/**").permitAll()
+                                .requestMatchers("/api/notifications/**").permitAll()
                         .requestMatchers("/eureka/**").permitAll()
                                 .requestMatchers("/api/users/internal/**").permitAll()
-                        .anyRequest().authenticated()
+                                .requestMatchers("/api/internal/**").permitAll()
+                                .anyRequest().permitAll()
                 )
+//                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .authenticationProvider(authenticationProvider)
                 .httpBasic(AbstractHttpConfigurer::disable);
 

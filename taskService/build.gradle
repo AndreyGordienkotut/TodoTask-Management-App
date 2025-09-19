@@ -26,6 +26,9 @@ dependencies {
 	implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
 
+	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+
+
 }
 dependencyManagement {
 	imports {

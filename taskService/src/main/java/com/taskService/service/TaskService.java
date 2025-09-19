@@ -1,5 +1,6 @@
 package com.taskService.service;
 
+import com.taskService.config.NotificationServiceClient;
 import com.taskService.config.UserServiceClient;
 import com.taskService.dto.*;
 import com.taskService.exception.ResourceNotFoundException;
@@ -7,25 +8,30 @@ import com.taskService.model.Priority;
 import com.taskService.model.Status;
 import com.taskService.model.Task;
 import com.taskService.repository.TaskRepository;
+import jakarta.validation.constraints.NotBlank;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
-import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+
 import java.time.LocalDate;
-import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
-
+    @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TaskService {
     private final TaskRepository taskRepository;
-
+        private final NotificationServiceClient notificationServiceClient;
+        private final UserServiceClient userServiceClient;
     private TaskResponseDto convertToDto(Task task) {
         return new TaskResponseDto(
                 task.getId(),
@@ -70,6 +76,25 @@ public class TaskService {
                 .priority(requestDto.getPriority())
                 .build();
         Task savedTask = taskRepository.save(task);
+
+        try {
+
+            UserDto user = userServiceClient.getUserById(userId);
+            if (user != null) {
+                NotificationServiceRequest notificationRequest = new NotificationServiceRequest(
+                        savedTask.getId(),
+                        user.getEmail(),
+                        "New task: " + savedTask.getTitle(),
+                        "Hello, " + user.getName() + "!\nYou have new task '" + savedTask.getTitle() + "'.",
+                        "EMAIL",
+                        "SENT",
+                        LocalDateTime.now()
+                );
+                notificationServiceClient.sendNotification(notificationRequest);
+            }
+        } catch (Exception e) {
+            log.error("Failed to send notification to user with ID {}. Error: {}", userId, e.getMessage(), e);
+        }
         return convertToDto(savedTask);
     }
 
@@ -201,6 +226,7 @@ public class TaskService {
     private Specification<Task> byDateTo(LocalDate to) {
         return (root, query, cb) -> cb.lessThanOrEqualTo(root.get("date"), to);
     }
+
 
 
 }
