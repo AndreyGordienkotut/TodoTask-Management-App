@@ -1,4 +1,4 @@
-package com.userService.dto;
+package com.notificationService.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,5 +14,6 @@ public class UserDto {
     private String name;
     private String email;
     private Long telegramChatId;
+
 
 }

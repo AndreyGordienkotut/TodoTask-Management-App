@@ -28,13 +28,17 @@ dependencies {
 	testImplementation 'org.testcontainers:postgresql:1.17.5'
 
 	// eureka Client
-	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
-
+//	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+//	implementation('org.springframework.cloud:spring-cloud-starter-netflix-eureka-client:4.1.1') {
+//		exclude group: "com.fasterxml.jackson.module", module: "jackson-module-jaxb-annotations"
+//		exclude group: "javax.xml.bind"
+//	}
 	// loadBalancer
 	implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+	implementation 'com.github.pengrad:java-telegram-bot-api:7.11.0'
 
 }
 dependencyManagement {
@@ -45,3 +49,8 @@ dependencyManagement {
 test {
 	useJUnitPlatform()
 }
+//configurations {
+//	all {
+//		exclude group: "com.fasterxml.jackson.module", module: "jackson-module-jaxb-annotations"
+//	}
+//}

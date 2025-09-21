@@ -28,6 +28,8 @@ public class User implements UserDetails {
     private String email;
     @Column(nullable = false)
     private String password;
+    @Column(name = "telegram_chat_id")
+    private Long telegramChatId;
 
     public User(User user) {
         this.id = user.getId();

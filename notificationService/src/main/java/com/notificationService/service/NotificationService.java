@@ -1,6 +1,7 @@
 package com.notificationService.service;
 
 import com.notificationService.dto.NotificationServiceRequest;
+import com.notificationService.model.Channel;
 import com.notificationService.model.Notification;
 import com.notificationService.model.Notification_status;
 import com.notificationService.repository.NotificationRepository;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final EmailService emailService;
+    private final TelegramService telegramService;
 
     @Transactional
     public void sendNotification(NotificationServiceRequest request) {
@@ -32,11 +34,19 @@ public class NotificationService {
         notificationRepository.save(notification);
 
         try {
-            emailService.sendSimpleEmail(
-                    request.getRecipient(),
-                    request.getSubject(),
-                    request.getMessage()
-            );
+            if (Channel.EMAIL.equals(request.getChannel())) {
+                emailService.sendSimpleEmail(
+                        request.getRecipient(),
+                        request.getSubject(),
+                        request.getMessage()
+                );
+            }
+            else if (Channel.TELEGRAM.equals(request.getChannel())) {
+                telegramService.sendMessage(
+                        request.getRecipientTelegramId(),
+                        request.getMessage()
+                );
+            }
             notification.setStatus(Notification_status.SENT);
             notification.setSentAt(LocalDateTime.now());
         } catch (Exception e) {

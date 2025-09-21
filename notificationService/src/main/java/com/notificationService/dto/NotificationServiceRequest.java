@@ -18,6 +18,7 @@ public class NotificationServiceRequest {
     private Long userId;
     @NotBlank(message = "Recipient is required")
     private String recipient;
+    private Long recipientTelegramId;
 
     private String subject;
     @NotBlank(message = "Message is required")

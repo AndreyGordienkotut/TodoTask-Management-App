@@ -49,6 +49,15 @@ public class UserController {
         userService.logout(request.getRefreshToken());
         return ResponseEntity.noContent().build();
     }
+    @PatchMapping("/{id}/telegram")
+    public void updateTelegramChatId(@PathVariable Long id, @RequestParam Long chatId) {
+        userService.updateTelegramChatId(id, chatId);
+    }
+    @GetMapping("/by-email")
+    public UserDto getByEmail(@RequestParam String email) {
+        return userService.getByEmail(email);
+    }
+
 
 
 }
