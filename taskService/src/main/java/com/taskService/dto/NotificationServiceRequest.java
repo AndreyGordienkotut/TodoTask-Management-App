@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class NotificationServiceRequest {
     private Long userId;
     private String recipient;
+    private Long recipientTelegramId;
     private String subject;
     private String message;
     private String channel;

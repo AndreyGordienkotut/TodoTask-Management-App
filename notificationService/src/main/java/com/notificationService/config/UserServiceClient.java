@@ -1,5 +1,6 @@
 package com.notificationService.config;
 
+import com.notificationService.dto.LinkTelegramRequest;
 import com.notificationService.dto.UserDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -37,5 +38,20 @@ public class UserServiceClient {
                 .retrieve()
                 .toBodilessEntity()
                 .block();
+    }
+    public boolean linkTelegramChatByToken(String token, Long chatId) {
+        try {
+            String response = webClientBuilder.build()
+                   .post()
+                   .uri("http://user-service/api/auth/link-by-token")
+                   .bodyValue(new LinkTelegramRequest(token, chatId))
+                   .retrieve()
+                  .bodyToMono(String.class)
+                  .block();
+
+            return "Linked".equalsIgnoreCase(response);
+       } catch (Exception e) {
+          return false;
+       }
     }
 }

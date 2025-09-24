@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -112,6 +114,7 @@ public class UserService {
                         .id(user.getId())
                         .name(user.getUsername())
                         .email(user.getEmail())
+                        .telegramChatId(user.getTelegramChatId())
                         .build())
                 .orElse(null);
     }
@@ -131,4 +134,14 @@ public class UserService {
                 .telegramChatId(user.getTelegramChatId())
                 .build();
     }
+
+    public String generateTelegramToken(User user) {
+        User u = userRepository.findById(user.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        String token = UUID.randomUUID().toString();
+        u.setTelegramLinkToken(token);
+        userRepository.save(u);
+        return token;
+    }
+
 }

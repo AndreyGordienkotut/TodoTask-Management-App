@@ -82,8 +82,9 @@ public class TaskService {
             UserDto user = userServiceClient.getUserById(userId);
             if (user != null) {
                 NotificationServiceRequest notificationRequest = new NotificationServiceRequest(
-                        savedTask.getId(),
+                        user.getId(),
                         user.getEmail(),
+                       null,
                         "New task: " + savedTask.getTitle(),
                         "Hello, " + user.getName() + "!\nYou have new task '" + savedTask.getTitle() + "'.",
                         "EMAIL",

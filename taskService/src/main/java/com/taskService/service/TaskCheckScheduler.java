@@ -51,7 +51,7 @@ public class TaskCheckScheduler {
         }
 
         List<Task> overdue = taskRepository.findByDueDateBetweenAndStatus(
-                now.minusMinutes(5), now, Status.NOT_COMPLETED
+                now, now.plusMinutes(5),Status.NOT_COMPLETED
         );
         for(Task task : overdue) {
             sendNotification(task,"Task overdue",
@@ -66,23 +66,44 @@ public class TaskCheckScheduler {
     private void sendNotification(Task task, String subject, String message) {
         try {
             UserDto user = userServiceClient.getUserById(task.getUserId());
+
             if (user == null) {
                 log.warn("User {} not found, notification not send", task.getUserId());
                 return;
             }
+            log.info("telegramchatId {}",user.getTelegramChatId());
+            NotificationServiceRequest request = new NotificationServiceRequest();
+            if (user.getTelegramChatId() != null) {
+                 request = NotificationServiceRequest.builder()
+                        .userId(task.getUserId())
+                        .recipientTelegramId(user.getTelegramChatId())
+                        .subject(subject)
+                        .message(message)
+                        .channel("TELEGRAM")
+                        .status("PENDING")
+                        .createdAt(LocalDateTime.now())
+                        .build();
 
-            NotificationServiceRequest request = NotificationServiceRequest.builder()
-                    .userId(task.getUserId())
-                    .recipient(user.getEmail())
-                    .subject(subject)
-                    .message(message)
-                    .channel("EMAIL")
-                    .status("PENDING")
-                    .createdAt(LocalDateTime.now())
-                    .build();
+                notificationServiceClient.sendNotification(request);
+                log.info("Telegram notification sent: {} → {}", user.getTelegramChatId(), subject);
 
-            notificationServiceClient.sendNotification(request);
+            }
+            if(user.getEmail() != null) {
+            NotificationServiceRequest request2 = new NotificationServiceRequest();
+                 request2 = NotificationServiceRequest.builder()
+                        .userId(task.getUserId())
+                        .recipient(user.getEmail())
+                        .subject(subject)
+                        .message(message)
+                        .channel("EMAIL")
+                        .status("PENDING")
+                        .createdAt(LocalDateTime.now())
+                        .build();
+
+
+            notificationServiceClient.sendNotification(request2);
             log.info("Notification sending: {} → {}", user.getEmail(), subject);
+            }
         } catch (Exception e) {
             log.error("Error sending task notification {}: {}", task.getId(), e.getMessage(), e);
         }

@@ -30,12 +30,9 @@ public class User implements UserDetails {
     private String password;
     @Column(name = "telegram_chat_id")
     private Long telegramChatId;
+    @Column(name = "telegram_link_token",unique = true)
+    private String telegramLinkToken;
 
-    public User(User user) {
-        this.id = user.getId();
-        this.username = user.getEmail();
-        this.password = user.getPassword();
-    }
     public User(String username, String email, String password) {
         this.username = username;
         this.email = email;
@@ -53,7 +50,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return username;
+        return email;
     }
 
     @Override

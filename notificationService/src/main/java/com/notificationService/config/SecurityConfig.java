@@ -23,6 +23,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/eureka/**").permitAll()
                         .requestMatchers("/api/notifications/send").permitAll()
+                        .requestMatchers("/api/telegram/**").permitAll()
                         .anyRequest().permitAll()
                 );
 
