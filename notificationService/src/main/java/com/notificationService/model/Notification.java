@@ -24,7 +24,8 @@ public class Notification {
     private Channel channel;
     @Column(nullable = false)
     private String recipient;
-
+    @Column(nullable = false,name = "recipient_telegram_id")
+    private Long recipientTelegramId;
     private String subject;
     @Column(nullable = false)
     private String message;

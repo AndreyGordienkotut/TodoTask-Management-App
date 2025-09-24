@@ -31,4 +31,6 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
     List<Task> findByDueDateBetweenAndStatus(LocalDateTime start, LocalDateTime end, Status status);
 
     List<Task> findByDueDateBeforeAndStatus(LocalDateTime dateTime, Status status);
+    List<Task> findByDueDateBetweenAndStatusAndNearlyOverdueNotified(
+            LocalDateTime start, LocalDateTime end, Status status, boolean nearlyOverdueNotified);
 }

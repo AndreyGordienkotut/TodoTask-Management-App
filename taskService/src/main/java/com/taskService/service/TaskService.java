@@ -77,25 +77,25 @@ public class TaskService {
                 .build();
         Task savedTask = taskRepository.save(task);
 
-        try {
-
-            UserDto user = userServiceClient.getUserById(userId);
-            if (user != null) {
-                NotificationServiceRequest notificationRequest = new NotificationServiceRequest(
-                        user.getId(),
-                        user.getEmail(),
-                       null,
-                        "New task: " + savedTask.getTitle(),
-                        "Hello, " + user.getName() + "!\nYou have new task '" + savedTask.getTitle() + "'.",
-                        "EMAIL",
-                        "SENT",
-                        LocalDateTime.now()
-                );
-                notificationServiceClient.sendNotification(notificationRequest);
-            }
-        } catch (Exception e) {
-            log.error("Failed to send notification to user with ID {}. Error: {}", userId, e.getMessage(), e);
-        }
+//        try {
+//
+//            UserDto user = userServiceClient.getUserById(userId);
+//            if (user != null) {
+//                NotificationServiceRequest notificationRequest = new NotificationServiceRequest(
+//                        user.getId(),
+//                        user.getEmail(),
+//                       null,
+//                        "New task: " + savedTask.getTitle(),
+//                        "Hello, " + user.getName() + "!\nYou have new task '" + savedTask.getTitle() + "'.",
+//                        "EMAIL",
+//                        "SENT",
+//                        LocalDateTime.now()
+//                );
+//                notificationServiceClient.sendNotification(notificationRequest);
+//            }
+//        } catch (Exception e) {
+//            log.error("Failed to send notification to user with ID {}. Error: {}", userId, e.getMessage(), e);
+//        }
         return convertToDto(savedTask);
     }
 

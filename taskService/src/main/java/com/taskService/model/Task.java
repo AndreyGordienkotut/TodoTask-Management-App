@@ -38,6 +38,8 @@ public class Task {
     private Priority priority;
     @Column(nullable = true, name = "due_date")
     private LocalDateTime dueDate;
+    @Column(nullable = false, name = "nearly_overdue_notified")
+    private boolean nearlyOverdueNotified;
 
 
 }

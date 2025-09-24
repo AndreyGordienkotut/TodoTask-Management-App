@@ -24,7 +24,8 @@ public class SecurityConfig {
                         .requestMatchers("/eureka/**").permitAll()
                         .requestMatchers("/api/notifications/send").permitAll()
                         .requestMatchers("/api/telegram/**").permitAll()
-                        .anyRequest().permitAll()
+//                        .anyRequest().permitAll()
+                        .anyRequest().authenticated()
                 );
 
         return http.build();

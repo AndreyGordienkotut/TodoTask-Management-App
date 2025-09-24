@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -24,14 +26,16 @@ public class NotificationService {
     private final UserServiceClient userServiceClient;
 
     @Transactional
-public void sendNotification(NotificationServiceRequest request) {
-    UserDto user = userServiceClient.getUserById(request.getUserId());
-    if (user == null) {
-        throw new RuntimeException("User not found for notification");
-    }
-    Notification notification = Notification.builder()
+    public void sendNotification(NotificationServiceRequest request) {
+        Optional<UserDto> optUser = userServiceClient.getUserById(request.getUserId());
+        if (optUser.isEmpty()) {
+             throw new RuntimeException("User not found for notification");
+        }
+        UserDto user = optUser.get();
+        Notification notification = Notification.builder()
             .userId(user.getId())
             .recipient(request.getRecipient())
+            .recipientTelegramId(request.getRecipientTelegramId())
             .channel(request.getChannel())
             .subject(request.getSubject())
             .message(request.getMessage())
@@ -39,24 +43,34 @@ public void sendNotification(NotificationServiceRequest request) {
             .createdAt(LocalDateTime.now())
             .build();
 
-    notificationRepository.save(notification);
-
+        notificationRepository.save(notification);
     try {
-        if (request.getChannel() == Channel.EMAIL) {
-            emailService.sendSimpleEmail(user.getEmail(), request.getSubject(), request.getMessage());
-        } else if (request.getChannel() == Channel.TELEGRAM) {
-            telegramService.sendMessage(user.getTelegramChatId(), request.getMessage());
-        } else {
-            throw new RuntimeException("No valid channel for user");
+//        if (request.getChannel() == Channel.EMAIL) {
+//            emailService.sendSimpleEmail(user.getEmail(), request.getSubject(), request.getMessage());
+//        } else if (request.getChannel() == Channel.TELEGRAM) {
+//            telegramService.sendMessage(user.getTelegramChatId(), request.getMessage());
+//        } else {
+//            throw new RuntimeException("No valid channel for user");
+//        }
+        switch (request.getChannel()) {
+            case EMAIL -> {
+                emailService.sendSimpleEmail(user.getEmail(), request.getSubject(), request.getMessage());
+            }
+            case TELEGRAM -> {
+                if (user.getTelegramChatId() == null) {
+                    throw new IllegalStateException("User has no telegramChatId");
+                }
+                telegramService.sendMessage(user.getTelegramChatId(), request.getMessage());
+            }
+            default -> throw new IllegalArgumentException("Unsupported channel: " + request.getChannel());
         }
-
         notification.setStatus(Notification_status.SENT);
         notification.setSentAt(LocalDateTime.now());
     } catch (Exception e) {
         notification.setStatus(Notification_status.FAILED);
         notification.setError_message(e.getMessage());
+        log.error("Failed to send notification {}: {}", notification.getId(), e.getMessage(), e);
     }
-
     notificationRepository.save(notification);
-}
+    }
 }

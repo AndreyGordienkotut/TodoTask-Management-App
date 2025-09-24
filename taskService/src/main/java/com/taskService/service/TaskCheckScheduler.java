@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -24,44 +26,36 @@ public class TaskCheckScheduler {
     private final NotificationServiceClient notificationServiceClient;
     @Scheduled(fixedRate = 60000)
     @Transactional
-    public void checkOverdueTasks() {
-        List<Task> tasks = taskRepository.findAllByStatus(Status.NOT_COMPLETED);
+    public void checkAllTaskStatuses() {
         LocalDateTime now = LocalDateTime.now().withSecond(0).withNano(0);
+        LocalDateTime fifteenMinutesFromNow = now.plusMinutes(15);
 
-        tasks.stream()
-                .filter(task -> task.getDueDate() != null && task.getDueDate().isBefore(now))
-                .forEach(task -> {
-                    task.setStatus(Status.OVERDUE);
-                    taskRepository.save(task);
-                });
-        log.info("Launched checkOverdueTasks в {}", LocalDateTime.now());
-
-    }
-    @Scheduled(fixedRate = 60000)
-    @Transactional
-    public void checkNearlyOverdueAndOverdueTasks() {
-
-        LocalDateTime now = LocalDateTime.now().withSecond(0).withNano(0);
-        List<Task> nearlyOverdue = taskRepository.findByDueDateBetweenAndStatus(
-                now.minusMinutes(15), now, Status.NOT_COMPLETED
-        );
-        for(Task task : nearlyOverdue) {
-            sendNotification(task,"Task nearly overdue!",
-                    "Hello, you have less than 15 minutes left to complete the task "+task.getTitle()+ " hurry!");
+        List<Task> overdueTasks = taskRepository.findByDueDateBeforeAndStatus(now, Status.NOT_COMPLETED);
+        if (!overdueTasks.isEmpty()) {
+            List<Task> updatedOverdueTasks = overdueTasks.stream()
+                    .peek(task -> {
+                        sendNotification(task, "The task is overdue!",
+                                "You have not completed the task " + task.getTitle() + ". Please complete it as soon as possible!");
+                        task.setStatus(Status.OVERDUE);
+                    })
+                    .collect(Collectors.toList());
+            taskRepository.saveAll(updatedOverdueTasks);
+            log.info("Updated {} tasks to OVERDUE status.", updatedOverdueTasks.size());
         }
-
-        List<Task> overdue = taskRepository.findByDueDateBetweenAndStatus(
-                now, now.plusMinutes(5),Status.NOT_COMPLETED
+        List<Task> nearlyOverdueTasks = taskRepository.findByDueDateBetweenAndStatusAndNearlyOverdueNotified(
+                now, fifteenMinutesFromNow, Status.NOT_COMPLETED, false
         );
-        for(Task task : overdue) {
-            sendNotification(task,"Task overdue",
-                    "You haven't completed the task " + task.getTitle() + ". Try to complete it as quickly as possible!");
-            task.setStatus(Status.OVERDUE);
-            taskRepository.save(task);
+        if (!nearlyOverdueTasks.isEmpty()) {
+            List<Task> updatedNearlyOverdueTasks = nearlyOverdueTasks.stream()
+                    .peek(task -> {
+                        sendNotification(task, "The task will soon be overdue!",
+                                "Less than 15 minutes left until the deadline for the task: " + task.getTitle() + ". Hurry up!");
+                        task.setNearlyOverdueNotified(true);
+                    })
+                    .collect(Collectors.toList());
+            taskRepository.saveAll(updatedNearlyOverdueTasks);
+            log.info("Updated {} tasks with nearly overdue notification flag.", updatedNearlyOverdueTasks.size());
         }
-        log.info("Launched checkNearlyOverdueAndOverdueTasks в {}", LocalDateTime.now());
-        log.info("Search nearlyOverdue: {}", nearlyOverdue.size());
-        log.info("Search overdue: {}", overdue.size());
     }
     private void sendNotification(Task task, String subject, String message) {
         try {
@@ -89,19 +83,19 @@ public class TaskCheckScheduler {
 
             }
             if(user.getEmail() != null) {
-            NotificationServiceRequest request2 = new NotificationServiceRequest();
-                 request2 = NotificationServiceRequest.builder()
-                        .userId(task.getUserId())
-                        .recipient(user.getEmail())
-                        .subject(subject)
-                        .message(message)
-                        .channel("EMAIL")
-                        .status("PENDING")
-                        .createdAt(LocalDateTime.now())
-                        .build();
-
-
-            notificationServiceClient.sendNotification(request2);
+//            NotificationServiceRequest request2 = new NotificationServiceRequest();
+//                 request2 = NotificationServiceRequest.builder()
+//                        .userId(task.getUserId())
+//                        .recipient(user.getEmail())
+//                        .subject(subject)
+//                        .message(message)
+//                        .channel("EMAIL")
+//                        .status("PENDING")
+//                        .createdAt(LocalDateTime.now())
+//                        .build();
+//
+//
+//            notificationServiceClient.sendNotification(request2);
             log.info("Notification sending: {} → {}", user.getEmail(), subject);
             }
         } catch (Exception e) {
