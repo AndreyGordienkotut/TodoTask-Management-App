@@ -20,31 +20,7 @@ public class UserServiceClient {
     private WebClient client() {
         return webClientBuilder.build();
     }
-//    public UserDto getUserById(Long userId) {
-//        return webClientBuilder
-//                .build()
-//                .get()
-//                .uri("http://user-service/api/auth/internal/{id}", userId)
-//                .retrieve()
-//                .bodyToMono(UserDto.class)
-//                .block();
-//    }
-//
-//    public boolean linkTelegramChatByToken(String token, Long chatId) {
-//        try {
-//            String response = webClientBuilder.build()
-//                   .post()
-//                   .uri("http://user-service/api/auth/link-by-token")
-//                   .bodyValue(new LinkTelegramRequest(token, chatId))
-//                   .retrieve()
-//                  .bodyToMono(String.class)
-//                  .block();
-//
-//            return "Linked".equalsIgnoreCase(response);
-//       } catch (Exception e) {
-//          return false;
-//       }
-//    }
+
     public Optional<UserDto> getUserById(Long userId) {
         try {
             return client()

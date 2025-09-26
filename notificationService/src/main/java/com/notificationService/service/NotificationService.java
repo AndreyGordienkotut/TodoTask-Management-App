@@ -45,24 +45,13 @@ public class NotificationService {
 
         notificationRepository.save(notification);
     try {
-//        if (request.getChannel() == Channel.EMAIL) {
-//            emailService.sendSimpleEmail(user.getEmail(), request.getSubject(), request.getMessage());
-//        } else if (request.getChannel() == Channel.TELEGRAM) {
-//            telegramService.sendMessage(user.getTelegramChatId(), request.getMessage());
-//        } else {
-//            throw new RuntimeException("No valid channel for user");
-//        }
         switch (request.getChannel()) {
             case EMAIL -> {
                 emailService.sendSimpleEmail(user.getEmail(), request.getSubject(), request.getMessage());
             }
             case TELEGRAM -> {
-                if (user.getTelegramChatId() == null) {
-                    throw new IllegalStateException("User has no telegramChatId");
-                }
                 telegramService.sendMessage(user.getTelegramChatId(), request.getMessage());
             }
-            default -> throw new IllegalArgumentException("Unsupported channel: " + request.getChannel());
         }
         notification.setStatus(Notification_status.SENT);
         notification.setSentAt(LocalDateTime.now());

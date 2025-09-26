@@ -30,6 +30,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/tasks/create-test-task/**").permitAll()
                         .requestMatchers("/api/tasks").authenticated()
                         .anyRequest().permitAll()
+//                        .anyRequest().authenticated()
                 );
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

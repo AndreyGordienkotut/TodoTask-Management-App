@@ -47,8 +47,6 @@ public class TelegramService {
         });
     }
     public void sendMessage(Long chatId, String text) {
-//        SendMessage request = new SendMessage(chatId, text);
-//        telegramBot.execute(request);
         try {
             telegramBot.execute(new SendMessage(chatId, text));
             log.debug("Telegram sent to {}: {}", chatId, text);

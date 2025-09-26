@@ -22,9 +22,9 @@ public class Notification {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Channel channel;
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String recipient;
-    @Column(nullable = false,name = "recipient_telegram_id")
+    @Column(nullable = true,name = "recipient_telegram_id")
     private Long recipientTelegramId;
     private String subject;
     @Column(nullable = false)
