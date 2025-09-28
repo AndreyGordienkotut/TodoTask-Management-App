@@ -21,25 +21,6 @@ public class UserServiceClient {
         return webClientBuilder.build();
     }
 
-    public Optional<UserDto> getUserById(Long userId) {
-        try {
-            return client()
-                .get()
-                .uri("http://user-service/api/auth/internal/{id}", userId)
-                .retrieve()
-                .bodyToMono(UserDto.class)
-                .timeout(Duration.ofSeconds(3))
-                .onErrorResume(ex -> {
-                    log.error("Failed to fetch user by id {}: {}", userId, ex.getMessage());
-                    return Mono.empty();
-                })
-                .blockOptional();
-        } catch (Exception e) {
-             log.error("Exception in getUserById: {}", e.getMessage(), e);
-             return Optional.empty();
-        }
-    }
-
     public boolean linkTelegramChatByToken(String token, Long chatId) {
         try {
             String response = client()

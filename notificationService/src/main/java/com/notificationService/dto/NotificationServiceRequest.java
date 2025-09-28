@@ -24,4 +24,5 @@ public class NotificationServiceRequest {
     private Channel channel;
     private Notification_status status;
     private LocalDateTime atDate;
+    private LocalDateTime createdAt;
 }

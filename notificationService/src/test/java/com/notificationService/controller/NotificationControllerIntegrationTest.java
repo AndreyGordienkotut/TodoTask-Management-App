@@ -10,13 +10,17 @@ import com.notificationService.model.Notification;
 import com.notificationService.model.Notification_status;
 import com.notificationService.repository.NotificationRepository;
 import com.notificationService.service.EmailService;
+import com.notificationService.service.NotificationService;
 import com.notificationService.service.TelegramService;
+import jakarta.persistence.PrePersist;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -28,7 +32,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -94,53 +101,98 @@ public class NotificationControllerIntegrationTest {
     }
     @Test
     @DisplayName("Success - sendNotification")
-    void successSendNotification() throws Exception {
-        when(userServiceClient.getUserById(anyLong())).thenReturn(Optional.of(userDto));
-        doNothing().when(telegramService).sendMessage(anyLong(), anyString());
-        NotificationServiceRequest notificationServiceRequest = NotificationServiceRequest
-                .builder()
-                .userId(1L)
-                .channel(Channel.TELEGRAM)
-                .recipient(null)
-                .recipientTelegramId(1234L)
-                .subject("test subject")
-                .message("test message")
-                .build();
-        mockMvc.perform(post("/api/notifications/send")
-                .contentType(MediaType.APPLICATION_JSON)
-                        .with(csrf())
-                        .principal(() -> "1")
-                        .content(objectMapper.writeValueAsString(notificationServiceRequest)))
-                .andExpect(status().isOk());
-        assertThat(notificationRepository.count()).isEqualTo(1);
-        Notification notification = notificationRepository.findAll().get(0);
-        assertThat(notification.getStatus()).isEqualTo(Notification_status.SENT);
-        assertThat(notification.getSentAt()).isNotNull();
-    }
+    void controllerSavesPending() throws Exception {
+        NotificationServiceRequest request = NotificationServiceRequest.builder()
+            .userId(1L)
+            .channel(Channel.EMAIL)
+            .recipient("test@test.com")
+            .subject("subject")
+            .message("message")
+            .createdAt(LocalDateTime.now())
+            .build();
+        Notification notification = Notification.builder()
+            .userId(request.getUserId())
+            .recipient(request.getRecipient())
+            .recipientTelegramId(request.getRecipientTelegramId())
+            .channel(request.getChannel())
+            .subject(request.getSubject())
+            .message(request.getMessage())
+            .status(Notification_status.PENDING)
+            .createdAt(LocalDateTime.now())
+            .build();
+
+    mockMvc.perform(post("/api/notifications/send")
+                    .with(csrf())
+                    .principal(() -> "1")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(notification)))
+            .andExpect(status().isOk());
+
+    assertThat(notificationRepository.count()).isEqualTo(1);
+
+
+}
+
     @Test
-    @DisplayName("Failed - sendNotification, notification failed")
-    void failedSendNotification() throws Exception {
-        when(userServiceClient.getUserById(anyLong())).thenReturn(Optional.of(userDto));
-        doThrow(new RuntimeException("Email server is down")).when(emailService).sendSimpleEmail(anyString(), anyString(), anyString());
-        NotificationServiceRequest notificationServiceRequest = NotificationServiceRequest
-                .builder()
+    @DisplayName("Success - processNotificationAsync")
+    void workerSetsSentOnSuccessEmail() throws Exception {
+        doNothing().when(emailService).sendSimpleEmail(anyString(), anyString(), anyString());
+        NotificationService service = new NotificationService(notificationRepository, emailService, telegramService);
+
+        Notification pending = notificationRepository.save(Notification.builder()
                 .userId(1L)
                 .channel(Channel.EMAIL)
-                .recipient("email@test.com")
-                .recipientTelegramId(null)
-                .subject("test subject")
-                .message("test message")
-                .build();
-        mockMvc.perform(post("/api/notifications/send")
-                        .with(csrf())
-                        .principal(() -> "1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(notificationServiceRequest)))
-                .andExpect(status().isOk());
-        assertThat(notificationRepository.count()).isEqualTo(1);
-        Notification notification = notificationRepository.findAll().get(0);
-        assertThat(notification.getStatus()).isEqualTo(Notification_status.FAILED);
-        assertThat(notification.getError_message()).isEqualTo("Email server is down");
-        assertThat(notification.getSentAt()).isNull();
+                .status(Notification_status.PENDING)
+                .recipient("test@test.com")
+                .subject("subj")
+                .message("msg")
+                        .createdAt(LocalDateTime.now())
+                .build());
+        service.processNotificationAsync(pending.getId(), NotificationServiceRequest.builder()
+                .userId(1L)
+                .channel(Channel.EMAIL)
+                .recipient("test@test.com")
+                .subject("subj")
+                .message("msg")
+                .build());
+        TimeUnit.MILLISECONDS.sleep(200);
+
+        Notification updated = notificationRepository.findById(pending.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(Notification_status.SENT);
+        assertThat(updated.getSentAt()).isNotNull();
     }
+
+    @Test
+    @DisplayName("Failed - processNotificationAsync")
+    void workerSetsFailedOnEmailException() throws Exception {
+        doThrow(new RuntimeException("SMTP error"))
+                .when(emailService).sendSimpleEmail(anyString(), anyString(), anyString());
+
+        NotificationService service = new NotificationService(notificationRepository, emailService, telegramService);
+
+        Notification pending = notificationRepository.save(Notification.builder()
+                .userId(1L)
+                .channel(Channel.EMAIL)
+                .status(Notification_status.PENDING)
+                .recipient("test@test.com")
+                .subject("subj")
+                .message("msg")
+                .createdAt(LocalDateTime.now())
+                .build());
+
+        service.processNotificationAsync(pending.getId(), NotificationServiceRequest.builder()
+                .userId(1L)
+                .channel(Channel.EMAIL)
+                .recipient("test@test.com")
+                .subject("subj")
+                .message("msg")
+                .build());
+
+        TimeUnit.MILLISECONDS.sleep(200);
+
+        Notification updated = notificationRepository.findById(pending.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(Notification_status.FAILED);
+        assertThat(updated.getError_message()).contains("SMTP error");
+    }
+
 }

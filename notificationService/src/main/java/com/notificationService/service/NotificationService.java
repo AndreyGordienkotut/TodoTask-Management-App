@@ -1,6 +1,7 @@
 package com.notificationService.service;
 
 import com.notificationService.config.UserServiceClient;
+//import com.notificationService.config.UserServiceClientF;
 import com.notificationService.dto.NotificationServiceRequest;
 import com.notificationService.dto.UserDto;
 import com.notificationService.model.Channel;
@@ -11,6 +12,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -23,17 +25,9 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final EmailService emailService;
     private final TelegramService telegramService;
-    private final UserServiceClient userServiceClient;
-
-    @Transactional
     public void sendNotification(NotificationServiceRequest request) {
-        Optional<UserDto> optUser = userServiceClient.getUserById(request.getUserId());
-        if (optUser.isEmpty()) {
-             throw new RuntimeException("User not found for notification");
-        }
-        UserDto user = optUser.get();
-        Notification notification = Notification.builder()
-            .userId(user.getId())
+         Notification notification = Notification.builder()
+            .userId(request.getUserId())
             .recipient(request.getRecipient())
             .recipientTelegramId(request.getRecipientTelegramId())
             .channel(request.getChannel())
@@ -43,23 +37,32 @@ public class NotificationService {
             .createdAt(LocalDateTime.now())
             .build();
 
-        notificationRepository.save(notification);
-    try {
-        switch (request.getChannel()) {
-            case EMAIL -> {
-                emailService.sendSimpleEmail(user.getEmail(), request.getSubject(), request.getMessage());
-            }
-            case TELEGRAM -> {
-                telegramService.sendMessage(user.getTelegramChatId(), request.getMessage());
-            }
-        }
-        notification.setStatus(Notification_status.SENT);
-        notification.setSentAt(LocalDateTime.now());
-    } catch (Exception e) {
-        notification.setStatus(Notification_status.FAILED);
-        notification.setError_message(e.getMessage());
-        log.error("Failed to send notification {}: {}", notification.getId(), e.getMessage(), e);
+        notification = notificationRepository.saveAndFlush(notification);
+
+        processNotificationAsync(notification.getId(), request);
     }
-    notificationRepository.save(notification);
+    @Async("taskExecutor")
+    public void processNotificationAsync(Long notificationId, NotificationServiceRequest request) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("Notification not found"));
+
+        try {
+            switch (request.getChannel()) {
+                case EMAIL -> emailService.sendSimpleEmail(request.getRecipient(),
+                        request.getSubject(),
+                        request.getMessage());
+                case TELEGRAM -> telegramService.sendMessage(request.getRecipientTelegramId(),
+                        request.getMessage());
+            }
+
+            notification.setStatus(Notification_status.SENT);
+            notification.setSentAt(LocalDateTime.now());
+        } catch (Exception e) {
+            notification.setStatus(Notification_status.FAILED);
+            notification.setError_message(e.getMessage());
+            log.error("Failed to send notification {}: {}", notification.getId(), e.getMessage(), e);
+        }
+
+        notificationRepository.save(notification);
     }
 }

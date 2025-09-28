@@ -24,17 +24,9 @@ import java.util.UUID;
 public class UserController {
     private final UserService userService;
     private final UserRepository userRepository;
-    @GetMapping("/{id}")
-    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
-        UserDto dto = userService.findUserById(String.valueOf(id));
-        if (dto == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(dto);
-    }
     @GetMapping("/internal/{id}")
     public ResponseEntity<UserDto> getUserForInternal(@PathVariable Long id) {
-        UserDto dto = userService.findUserById(String.valueOf(id));
+        UserDto dto = userService.findUserById(id);
         if (dto == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(dto);
     }
@@ -52,6 +44,11 @@ public class UserController {
     @PostMapping("/refresh-token")
     public ResponseEntity<AuthenticationResponseDto> refreshToken(@Valid @RequestBody RefreshTokenRequestDto request) {
         return new ResponseEntity<>(userService.refreshToken(request), HttpStatus.OK);
+    }
+    @GetMapping("/verify-email")
+    public ResponseEntity<String> verifyEmail(@RequestParam("token") String token) {
+        userService.verifyEmail(token);
+        return new ResponseEntity<>("Email verified successfully!",HttpStatus.OK);
     }
 
     @PostMapping("/logout")

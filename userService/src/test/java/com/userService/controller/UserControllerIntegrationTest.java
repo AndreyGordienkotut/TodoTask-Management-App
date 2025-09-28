@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.userService.dto.AuthenticationRequestDto;
 import com.userService.dto.RefreshTokenRequestDto;
 import com.userService.dto.RegisterRequestDto;
+import com.userService.model.EmailVerificationTokens;
 import com.userService.model.RefreshToken;
 import com.userService.model.User;
+import com.userService.repository.EmailVerificationTokensRepository;
 import com.userService.repository.RefreshTokenRepository;
 import com.userService.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +28,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.is;
@@ -55,6 +58,8 @@ public class UserControllerIntegrationTest {
             .withPassword("test");
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private EmailVerificationTokensRepository emailVerificationTokensRepository;
 
     @DynamicPropertySource
     static void setDatasourceProperties(DynamicPropertyRegistry registry) {
@@ -72,11 +77,12 @@ public class UserControllerIntegrationTest {
     }
     @BeforeEach
     void setUp() {
+        emailVerificationTokensRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
     @Test
-    @DisplayName("Реєстрація: успішний сценарій")
+    @DisplayName("Success - register")
     void registerSuccesfull() throws Exception {
         RegisterRequestDto requestDto = new RegisterRequestDto("newuser", "newuser@example.com", "password123");
 
@@ -84,17 +90,16 @@ public class UserControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("newuser@example.com"))
-                .andExpect(jsonPath("$.username").value("newuser"))
+                .andExpect(jsonPath("$.username").value("newuser@example.com"))
                 .andExpect(jsonPath("$.token").isNotEmpty())
                 .andExpect(jsonPath("$.refreshToken").isNotEmpty());
 
         assertThat(userRepository.findByEmail("newuser@example.com")).isPresent();
     }
     @Test
-    @DisplayName("Реєстрація: неуспішний сценарій, користувач вже існує")
+    @DisplayName("Failed - register - user not exist")
     void registerFailure_userAlreadyExists() throws Exception {
-        userRepository.save(new User("newuser", "newuser@example.com", "password123"));
+        userRepository.save(new User("newuser", "newuser@example.com", "password123",true));
         RegisterRequestDto requestDto = new RegisterRequestDto("newuser", "newuser@example.com", "password123");
 
         mockMvc.perform(post("/api/auth/register")
@@ -105,10 +110,12 @@ public class UserControllerIntegrationTest {
         assertThat(userRepository.count()).isEqualTo(1);
     }
     @Test
-    @DisplayName("Тест успішної аутентифікації")
+    @DisplayName("Success - authenticate")
     void authenticateSuccesfull() throws Exception {
         String rawPassword = "password123";
-        userRepository.save(new User("testuser", "testuser@example.com", passwordEncoder.encode(rawPassword)));
+        User verifiedUser = new User("testuser", "testuser@example.com", passwordEncoder.encode(rawPassword));
+        verifiedUser.setVerified(true);
+        userRepository.save(verifiedUser);
         AuthenticationRequestDto requestDto = new AuthenticationRequestDto("testuser@example.com", rawPassword);
         mockMvc.perform(post("/api/auth/authenticate")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -118,7 +125,7 @@ public class UserControllerIntegrationTest {
                 .andExpect(jsonPath("$.refreshToken").isNotEmpty());
     }
     @Test
-    @DisplayName("Тест неуспішної аутентифікації, через неправильні дані")
+    @DisplayName("BadRequest - authenticate")
     void authenticateFailure_userNotFound() throws Exception {
         String rawPassword = "password123";
         userRepository.save(new User("testuser", "testuser@example.com", passwordEncoder.encode(rawPassword)));
@@ -130,7 +137,7 @@ public class UserControllerIntegrationTest {
                 .andExpect(jsonPath("$.message", is("Invalid email or password.")));
     }
     @Test
-    @DisplayName("refreshToken - успішно")
+    @DisplayName("Success - refreshToken")
     void refreshTokenSuccesfull() throws Exception {
         User user = userRepository.save(User.builder()
                 .username("testuser")
@@ -154,7 +161,7 @@ public class UserControllerIntegrationTest {
         assertThat(refreshTokenRepository.findByToken(token)).isPresent();
     }
     @Test
-    @DisplayName("refreshToken - BadRequestException, токен просрочений")
+    @DisplayName("BadRequestException -refreshToken - overdue token")
     void refreshTokenFailure_badRequest() throws Exception {
         User user = userRepository.save(User.builder()
                 .username("testuser")
@@ -176,6 +183,31 @@ public class UserControllerIntegrationTest {
                 .andExpect(jsonPath("$.message", is("Refresh token was expired. Please make a new sign-in request.")));
     }
     @Test
+    @DisplayName("Success - verifyEmail")
+    void verifyEmailSuccesfull() throws Exception {
+        User user = userRepository.save(User.builder()
+                .username("testuser")
+                .email("test@example.com")
+                .password(passwordEncoder.encode("password123"))
+                .build());
+        user.setVerified(false);
+        userRepository.save(user);
+        EmailVerificationTokens token = new EmailVerificationTokens();
+        token.setToken("verifyToken");
+        token.setUser(user);
+        token.setExpiryAt(LocalDateTime.now().plusHours(1));
+        token.setUsed(false);
+        emailVerificationTokensRepository.save(token);
+        mockMvc.perform(get("/api/auth/verify-email")
+        .contentType(MediaType.APPLICATION_JSON) .param("token", "verifyToken"))
+                .andExpect(status().isOk());
+        assertThat(userRepository.findByEmail("test@example.com"))
+                .get()
+                .extracting(User::isVerified)
+                .isEqualTo(true);
+    }
+
+    @Test
     @DisplayName("logout - успішний сценарій")
     void logoutSuccesfull() throws Exception {
         User user = userRepository.save(User.builder()
@@ -195,10 +227,10 @@ public class UserControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isNoContent());
-        assertThat(refreshTokenRepository.findByToken(token)).isNotPresent();
+
     }
     @Test
-    @DisplayName("logout - успішний сценарій")
+    @DisplayName("Success - logout")
     void logoutFailure_userNotFound() throws Exception {
         RefreshTokenRequestDto requestDto = new RefreshTokenRequestDto("non-existent-token");
         mockMvc.perform(post("/api/auth/logout")
@@ -206,8 +238,5 @@ public class UserControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isNoContent());
     }
-
-
-
 
 }

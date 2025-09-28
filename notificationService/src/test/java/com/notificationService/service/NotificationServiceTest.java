@@ -35,8 +35,6 @@ public class NotificationServiceTest {
     private EmailService emailService;
     @Mock
     private TelegramService telegramService;
-    @Mock
-    private UserServiceClient userServiceClient;
     @InjectMocks
     private NotificationService notificationService;
 
@@ -45,6 +43,7 @@ public class NotificationServiceTest {
     private NotificationServiceRequest emailRequest;
     private NotificationServiceRequest telegramRequest;
     private UserDto userDto;
+    private Notification pendingNotification;
     private Long userId;
     @BeforeEach
     void setUp() {
@@ -72,80 +71,92 @@ public class NotificationServiceTest {
                 .email("recipient@example.com")
                 .telegramChatId(1L)
                 .build();
+        pendingNotification = Notification.builder()
+                .id(100L)
+                .userId(1L)
+                .channel(Channel.EMAIL)
+                .status(Notification_status.PENDING)
+                .build();
+        notificationService = spy(new NotificationService(notificationRepository, emailService, telegramService));
+    }
+@Test
+@DisplayName("Success - sendNotification saves PENDING and calls async processor")
+void successSendNotification() throws Exception {
+    when(notificationRepository.saveAndFlush(any(Notification.class)))
+            .thenReturn(pendingNotification);
+    doNothing().when(notificationService).processNotificationAsync(anyLong(), any(NotificationServiceRequest.class));
+
+    notificationService.sendNotification(emailRequest);
+
+    ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+    verify(notificationRepository, times(1)).saveAndFlush(captor.capture());
+
+    Notification savedNotification = captor.getValue();
+    assertEquals(Notification_status.PENDING, savedNotification.getStatus());
+    verify(notificationService, times(1))
+            .processNotificationAsync(eq(pendingNotification.getId()), eq(emailRequest));
+    verify(emailService, never()).sendSimpleEmail(anyString(), anyString(), anyString());
+}
+    @Test
+    @DisplayName("Success - processNotificationAsync sends email and updates to SENT")
+    void successProcessNotificationAsyncEmail() {
+        when(notificationRepository.findById(anyLong())).thenReturn(Optional.of(pendingNotification));
+        notificationService.processNotificationAsync(pendingNotification.getId(), emailRequest);
+        verify(emailService, times(1)).sendSimpleEmail(
+                eq(emailRequest.getRecipient()),
+                eq(emailRequest.getSubject()),
+                eq(emailRequest.getMessage())
+        );
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository, times(1)).save(captor.capture());
+
+        Notification finalNotification = captor.getValue();
+        assertEquals(Notification_status.SENT, finalNotification.getStatus());
+        assertNotNull(finalNotification.getSentAt());
     }
 
     @Test
-    @DisplayName("Success - sendNotification for email")
-    void successSendNotification() {
-        when(notificationRepository.save(any(Notification.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(userServiceClient.getUserById(1L)).thenReturn(Optional.of(userDto));
+    @DisplayName("Success - processNotificationAsync sends telegram and updates to SENT")
+    void successProcessNotificationAsyncTelegram() {
+        when(notificationRepository.findById(anyLong())).thenReturn(Optional.of(pendingNotification));
+        notificationService.processNotificationAsync(pendingNotification.getId(), telegramRequest);
+        verify(telegramService, times(1)).sendMessage(
+                eq(telegramRequest.getRecipientTelegramId()),
+                eq(telegramRequest.getMessage())
+        );
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository, times(1)).save(captor.capture());
 
-        notificationService.sendNotification(emailRequest);
-
-        verify(notificationRepository, times(2)).save(any(Notification.class));
-        verify(emailService).sendSimpleEmail("recipient@example.com", "subject2", "message2");
-
-        assertEquals(Notification_status.SENT, emailRequest.getStatus());
-    }
-    @Test
-    @DisplayName("Success - sendNotification for telegram")
-    void successSendNotificationTelegram() {
-       when(notificationRepository.save(any(Notification.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(userServiceClient.getUserById(2L)).thenReturn(Optional.of(userDto));
-
-        notificationService.sendNotification(telegramRequest);
-
-        verify(notificationRepository, times(2)).save(any(Notification.class));
-        verify(telegramService).sendMessage(1L, "message2");
-
-        assertEquals(Notification_status.SENT, telegramRequest.getStatus());
-    }
-    @Test
-    @DisplayName("RuntimeException - sendNotification")
-    void runtimeExceptionSendNotification() {
-        when(userServiceClient.getUserById(999L)).thenReturn(Optional.empty());
-        assertThrows(RuntimeException.class, () -> notificationService.sendNotification(emailRequest));
-        verify(notificationRepository,never()).save(any(Notification.class));
-        verify(telegramService,never()).sendMessage(anyLong(), anyString());
+        Notification finalNotification = captor.getValue();
+        assertEquals(Notification_status.SENT, finalNotification.getStatus());
     }
 
     @Test
-    @DisplayName("Failure - email service throws exception")
-    void failureEmailServiceException() {
-        when(notificationRepository.save(any(Notification.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(userServiceClient.getUserById(1L)).thenReturn(Optional.of(userDto));
-        doThrow(new RuntimeException("SMTP error"))
+    @DisplayName("Failure - processNotificationAsync handles email exception and updates to FAILED")
+    void failureProcessNotificationAsyncEmailException() {
+        when(notificationRepository.findById(anyLong())).thenReturn(Optional.of(pendingNotification));
+        String errorMessage = "SMTP server failed";
+        doThrow(new RuntimeException(errorMessage))
                 .when(emailService).sendSimpleEmail(anyString(), anyString(), anyString());
+        notificationService.processNotificationAsync(pendingNotification.getId(), emailRequest);
 
-        notificationService.sendNotification(emailRequest);
+        verify(emailService, times(1)).sendSimpleEmail(anyString(), anyString(), anyString());
 
         ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
-        verify(notificationRepository, times(2)).save(captor.capture());
+        verify(notificationRepository, times(1)).save(captor.capture());
 
-        Notification secondSave = captor.getAllValues().get(1);
-        assertEquals(Notification_status.FAILED, secondSave.getStatus());
-        assertTrue(secondSave.getError_message().contains("SMTP error"));
+        Notification finalNotification = captor.getValue();
+        assertEquals(Notification_status.FAILED, finalNotification.getStatus());
+        assertTrue(finalNotification.getError_message().contains(errorMessage));
     }
 
     @Test
-    @DisplayName("Failure - telegram service throws exception")
-    void failureTelegramServiceException() {
-        when(notificationRepository.save(any(Notification.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(userServiceClient.getUserById(2L)).thenReturn(Optional.of(userDto));
-        doThrow(new RuntimeException("Telegram API down"))
-                .when(telegramService).sendMessage(anyLong(), anyString());
-
-        notificationService.sendNotification(telegramRequest);
-
-        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
-        verify(notificationRepository, times(2)).save(captor.capture());
-
-        Notification secondSave = captor.getAllValues().get(1);
-        assertEquals(Notification_status.FAILED, secondSave.getStatus());
-        assertTrue(secondSave.getError_message().contains("Telegram API down"));
+    @DisplayName("Failure - processNotificationAsync throws if notification not found")
+    void failureProcessNotificationAsyncNotFound() {
+        when(notificationRepository.findById(anyLong())).thenReturn(Optional.empty());
+        assertThrows(RuntimeException.class,
+                () -> notificationService.processNotificationAsync(999L, emailRequest));
+        verify(notificationRepository, never()).save(any(Notification.class));
+        verify(emailService, never()).sendSimpleEmail(anyString(), anyString(), anyString());
     }
 }

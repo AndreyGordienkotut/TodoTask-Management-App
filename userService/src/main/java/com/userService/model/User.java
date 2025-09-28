@@ -32,11 +32,19 @@ public class User implements UserDetails {
     private Long telegramChatId;
     @Column(name = "telegram_link_token",unique = true)
     private String telegramLinkToken;
+    @Column(nullable = false)
+    private boolean verified;
 
     public User(String username, String email, String password) {
         this.username = username;
         this.email = email;
         this.password = password;
+    }
+    public User(String username, String email, String password,boolean verified) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+        this.verified = verified;
     }
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

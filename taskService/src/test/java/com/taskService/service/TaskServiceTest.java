@@ -34,43 +34,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 @ExtendWith(MockitoExtension.class)
 class TaskServiceTest {
-
-//
-//    updateTask →
-//
-//    success (обновили title/desc/date).
-//
-//    fail (не найдено → ResourceNotFoundException).
-//
-//    fail (чужой таск → AccessDeniedException).
-//
-//    updateStatus / updatePriority → аналогично.
-//
-//            archiveTask →
-//
-//    success (архивируем).
-//
-//    fail (не найдено).
-//
-//    fail (чужой таск).
-//
-//    deleteTask →
-//
-//    success (удалили архивную задачу).
-//
-//    fail (чужой таск).
-//
-//    fail (таск не в архиве → IllegalStateException).
-//
-//    deleteTasksBulk →
-//
-//    success (удалены все).
-//
-//    fail (список пустой → IllegalArgumentException).
-//
-//    fail (есть чужой таск → SecurityException).
-//
-//    fail (есть неархивный таск → IllegalStateException).
     @Mock
     private TaskRepository taskRepository;
 
@@ -95,9 +58,7 @@ class TaskServiceTest {
         taskRequestDto.setDescription("Test description2");
         taskRequestDto.setStatus(Status.COMPLETED);
         taskRequestDto.setPriority(Priority.HIGH);
-
-
-        //for pageable
+        //pageable
         userId = 1L;
         pageable = PageRequest.of(0, 10);
 

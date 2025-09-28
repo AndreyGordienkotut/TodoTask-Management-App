@@ -83,19 +83,19 @@ public class TaskCheckScheduler {
 
             }
             if(user.getEmail() != null) {
-//            NotificationServiceRequest request2 = new NotificationServiceRequest();
-//                 request2 = NotificationServiceRequest.builder()
-//                        .userId(task.getUserId())
-//                        .recipient(user.getEmail())
-//                        .subject(subject)
-//                        .message(message)
-//                        .channel("EMAIL")
-//                        .status("PENDING")
-//                        .createdAt(LocalDateTime.now())
-//                        .build();
-//
-//
-//            notificationServiceClient.sendNotification(request2);
+            NotificationServiceRequest request2 = new NotificationServiceRequest();
+                 request2 = NotificationServiceRequest.builder()
+                        .userId(task.getUserId())
+                        .recipient(user.getEmail())
+                        .subject(subject)
+                        .message(message)
+                        .channel("EMAIL")
+                        .status("PENDING")
+                        .createdAt(LocalDateTime.now())
+                        .build();
+
+
+            notificationServiceClient.sendNotification(request2);
             log.info("Notification sending: {} → {}", user.getEmail(), subject);
             }
         } catch (Exception e) {

@@ -1,14 +1,18 @@
 package com.userService.service;
 
+import com.userService.config.NotificationServiceClient;
 import com.userService.dto.*;
 
+import com.userService.model.EmailVerificationTokens;
 import com.userService.model.RefreshToken;
 import com.userService.model.User;
 import com.userService.exception.*;
+import com.userService.repository.EmailVerificationTokensRepository;
 import com.userService.repository.RefreshTokenRepository;
 import com.userService.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
@@ -17,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +29,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
@@ -33,6 +39,9 @@ public class UserService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenService refreshTokenService;
+    private final NotificationServiceClient notificationServiceClient;
+    private final EmailVerificationTokensRepository emailVerificationTokensRepository;
+
     @Transactional
     public AuthenticationResponseDto register(RegisterRequestDto requestDto) {
         if (userRepository.findByEmail(requestDto.getEmail()).isPresent()) {
@@ -42,7 +51,32 @@ public class UserService {
         user.setUsername(requestDto.getUsername());
         user.setEmail(requestDto.getEmail());
         user.setPassword(passwordEncoder.encode(requestDto.getPassword()));
+        user.setVerified(false);
         User savedUser = userRepository.save(user);
+        String token = UUID.randomUUID().toString();
+        EmailVerificationTokens emailVerificationTokens = EmailVerificationTokens.builder()
+                .user(savedUser)
+                .token(token)
+                .used(false)
+                .expiryAt(LocalDateTime.now().plusHours(24))
+                .build();
+        emailVerificationTokensRepository.save(emailVerificationTokens);
+        try {
+
+            NotificationServiceRequest notificationRequest = new NotificationServiceRequest(
+                    savedUser.getId(),
+                    savedUser.getEmail(),
+                    "Email verification",
+                    "Hello, " + user.getUsername() + "!\nFollow the link http://localhost:8080/api/auth/verify-email?token="+token,
+                    "EMAIL",
+                    "SENT",
+                    LocalDateTime.now()
+            );
+            notificationServiceClient.sendNotification(notificationRequest);
+        }
+        catch (Exception e) {
+            log.error("Failed to send notification to user with ID {}. Error: {}", user.getId(), e.getMessage(), e);
+        }
         Map<String, Object> extra = new HashMap<>();
         extra.put("userId", user.getId());
         String jwtAccessToken = jwtService.generateToken(extra, user);
@@ -68,7 +102,11 @@ public class UserService {
             System.err.println("Authentication failed for user " + request.getEmail() + ": " + e.getMessage());
             throw new BadRequestException("Invalid email or password.");
         }
+
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new UsernameNotFoundException("User not found with email: " +request.getEmail()));
+        if (!user.isVerified()) {
+            throw new BadRequestException("Email is not verified. Please check your inbox.");
+        }
         Map<String, Object> extra = new HashMap<>();
         extra.put("userId", user.getId());
         String jwtAccessToken = jwtService.generateToken(extra, user);
@@ -101,6 +139,23 @@ public class UserService {
                .build();
     }
     @Transactional
+    public void verifyEmail(String token) {
+        EmailVerificationTokens emailVerificationTokens = emailVerificationTokensRepository.findByToken(token)
+                .orElseThrow(() -> new BadRequestException("Invalid or expired token."));
+        if(emailVerificationTokens.getExpiryAt().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("Email verification expired.");
+        }
+        if(emailVerificationTokens.isUsed()){
+            throw new BadRequestException("Email verification token already used.");
+        }
+        emailVerificationTokens.setUsed(true);
+        emailVerificationTokensRepository.save(emailVerificationTokens);
+        User user = emailVerificationTokens.getUser();
+        user.setVerified(true);
+        userRepository.save(user);
+
+    }
+    @Transactional
     public void logout(String refreshToken) {
         Optional<RefreshToken> tokenOptional = refreshTokenService.findByToken(refreshToken);
         if (tokenOptional.isPresent()) {
@@ -108,16 +163,16 @@ public class UserService {
         }
     }
 
-    public UserDto findUserById(String userId) {
-        return userRepository.findById(Long.valueOf(userId))
-                .map(user -> UserDto.builder()
-                        .id(user.getId())
-                        .name(user.getUsername())
-                        .email(user.getEmail())
-                        .telegramChatId(user.getTelegramChatId())
-                        .build())
-                .orElse(null);
-    }
+public UserDto findUserById(Long userId) {
+    return userRepository.findById(userId)
+            .map(user -> UserDto.builder()
+                    .id(user.getId())
+                    .name(user.getUsername())
+                    .email(user.getEmail())
+                    .telegramChatId(user.getTelegramChatId())
+                    .build())
+            .orElse(null);
+}
     public void updateTelegramChatId(Long userId, Long chatId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
