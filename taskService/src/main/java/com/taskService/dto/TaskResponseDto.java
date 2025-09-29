@@ -1,5 +1,6 @@
 package com.taskService.dto;
 
+import com.taskService.model.Frequency_repeat;
 import com.taskService.model.Priority;
 import com.taskService.model.Status;
 import lombok.AllArgsConstructor;
@@ -21,4 +22,6 @@ public class TaskResponseDto {
     private LocalDateTime dueDate;
     private Status status;
     private Priority priority;
+    private boolean isRepeat;
+    private Frequency_repeat frequency_repeat;
 }

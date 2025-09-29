@@ -41,5 +41,11 @@ public class Task {
     @Column(nullable = false, name = "nearly_overdue_notified")
     private boolean nearlyOverdueNotified;
 
-
+    @Column(nullable = false, name = "is_repeat")
+    private boolean isRepeat;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true, name = "frequency_repeat")
+    private Frequency_repeat frequencyRepeat;
+    @Column(name = "parent_task_id")
+    private Long parentTaskId;
 }

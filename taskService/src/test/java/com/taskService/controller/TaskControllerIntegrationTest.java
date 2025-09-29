@@ -8,6 +8,7 @@ import com.taskService.dto.TaskRequestDto;
 import com.taskService.dto.UpdatePriorityRequestDto;
 import com.taskService.dto.UpdateStatusRequestDto;
 import com.taskService.dto.UpdateTaskRequestDto;
+import com.taskService.model.Frequency_repeat;
 import com.taskService.model.Priority;
 import com.taskService.model.Task;
 import com.taskService.model.Status;
@@ -44,6 +45,8 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.LongStream;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.hamcrest.Matchers.is;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,7 +66,8 @@ public class TaskControllerIntegrationTest {
     @Autowired
     private TaskRepository taskRepository;
     private Long preloadedTaskId;
-
+    private final Long USER_ID_1 = 1L;
+    private final Long USER_ID_2 = 2L;
     @Container
     public static PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:14.8-alpine")
             .withDatabaseName("testdb")
@@ -88,6 +92,38 @@ public class TaskControllerIntegrationTest {
     void setUp() {
         taskRepository.deleteAll();
     }
+    //Creates a parent task and several child tasks, forming a series for testing
+    private Task createRepeatSeries(Long userId, int count, Status initialStatus) {
+        Task parentTask = Task.builder()
+                .title("Parent Repeating Task")
+                .description("Series master task")
+                .priority(Priority.HIGH)
+                .status(initialStatus)
+                .userId(userId)
+                .date(LocalDateTime.now())
+                .isRepeat(true)
+                .frequencyRepeat(Frequency_repeat.WEEK)
+                .parentTaskId(null)
+                .build();
+        parentTask = taskRepository.save(parentTask);
+        final Long parentId = parentTask.getId();
+        LongStream.rangeClosed(1, count)
+                .mapToObj(i -> Task.builder()
+                        .title("Child Task " + i)
+                        .description("Part of the series")
+                        .priority(Priority.MEDIUM)
+                        .status(initialStatus)
+                        .userId(userId)
+                        .date(LocalDateTime.now().plusDays(i * 7L))
+                        .isRepeat(true)
+                        .frequencyRepeat(Frequency_repeat.WEEK)
+                        .parentTaskId(parentId)
+                        .build())
+                .forEach(taskRepository::save);
+
+        return parentTask;
+    }
+
     @Test
     @DisplayName("Success - getAllTasks")
     void successGetAllTasks() throws Exception {
@@ -420,12 +456,23 @@ public class TaskControllerIntegrationTest {
                 .status(Status.COMPLETED)
                 .userId(1L)
                 .date(LocalDateTime.now())
+                .isRepeat(false)
                 .build();
         taskRepository.save(task);
         mockMvc.perform(delete("/api/tasks/{id}/archive", task.getId())
                         .principal(() -> "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ARCHIVED"));
+    }
+    @Test
+    @DisplayName("409 - archiveTask - Attempt on Repeating Task)")
+    void archiveTaskIllegalState() throws Exception {
+        // Создаем повторяющуюся задачу, которую нельзя архивировать как одиночную
+        Task task = createRepeatSeries(USER_ID_1, 0, Status.NOT_COMPLETED);
+
+        mockMvc.perform(delete("/api/tasks/{id}/archive", task.getId())
+                        .principal(() -> USER_ID_1.toString()))
+                .andExpect(status().isConflict());
     }
     @Test
     @DisplayName("403 - archiveTask foreign user")
@@ -437,10 +484,38 @@ public class TaskControllerIntegrationTest {
                 .status(Status.COMPLETED)
                 .userId(99L)
                 .date(LocalDateTime.now())
+                .isRepeat(false)
                 .build();
         taskRepository.save(task);
         mockMvc.perform(delete("/api/tasks/{id}/archive", task.getId())
                         .principal(() -> "1"))
+                .andExpect(status().isForbidden());
+    }
+    @Test
+    @DisplayName("Success - archiveSeries")
+    void archiveSeriesSuccess() throws Exception {
+        Task parentTask = createRepeatSeries(USER_ID_1, 2, Status.NOT_COMPLETED);
+
+        mockMvc.perform(delete("/api/tasks/{id}/series/archive", parentTask.getId())
+                        .principal(() -> USER_ID_1.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].status").value("ARCHIVED"))
+                .andExpect(jsonPath("$[1].status").value("ARCHIVED"));
+
+        List<Task> updatedTasks = taskRepository.findAll();
+        assertThat(updatedTasks).hasSize(3);
+        assertThat(updatedTasks.stream().allMatch(t -> t.getStatus() == Status.ARCHIVED)).isTrue();
+    }
+
+    @Test
+    @DisplayName("403 - archiveSeries foreign user")
+    void archiveSeriesForeignUser() throws Exception {
+        Task parentTask = createRepeatSeries(USER_ID_2, 1, Status.NOT_COMPLETED);
+
+        mockMvc.perform(delete("/api/tasks/{id}/series/archive", parentTask.getId())
+                        .principal(() -> USER_ID_1.toString()))
                 .andExpect(status().isForbidden());
     }
     @Test
@@ -509,4 +584,49 @@ public class TaskControllerIntegrationTest {
                 .content(objectMapper.writeValueAsString(ids)))
                 .andExpect(status().isNoContent());
     }
+    @Test
+    @DisplayName("204 - deleteArchivedTaskSeries")
+    void successDeleteArchivedTaskSeries() throws Exception {
+        Task parentTask = createRepeatSeries(USER_ID_1, 2, Status.ARCHIVED);
+        Long seriesId = parentTask.getId();
+
+        mockMvc.perform(delete("/api/tasks/{id}/series/permanent", seriesId)
+                        .principal(() -> USER_ID_1.toString()))
+                .andExpect(status().isNoContent());
+
+        assertThat(taskRepository.findRepeatGroupTasks(seriesId, USER_ID_1)).isEmpty();
+        assertThat(taskRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("409 - deleteArchivedTaskSeries )")
+    void illegalStateDeleteArchivedTaskSeries() throws Exception {
+        Task parentTask = createRepeatSeries(USER_ID_1, 2, Status.NOT_COMPLETED);
+        Long seriesId = parentTask.getId();
+
+        mockMvc.perform(delete("/api/tasks/{id}/series/permanent", seriesId)
+                        .principal(() -> USER_ID_1.toString()))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("403 - deleteArchivedTaskSeries foreign user")
+    void deleteArchivedTaskSeriesForeignUser() throws Exception {
+        Task parentTask = createRepeatSeries(USER_ID_2, 1, Status.ARCHIVED);
+        Long seriesId = parentTask.getId();
+
+        mockMvc.perform(delete("/api/tasks/{id}/series/permanent", seriesId)
+                        .principal(() -> USER_ID_1.toString()))
+                .andExpect(status().isForbidden());
+    }
+    @Test
+    @DisplayName("400 - deleteTasksBulk - empty list")
+    void illegalArgumentDeleteTasksBulk() throws Exception {
+        mockMvc.perform(delete("/api/tasks/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .principal(() -> USER_ID_1.toString())
+                        .content(objectMapper.writeValueAsString(List.of())))
+                .andExpect(status().isBadRequest());
+    }
+
 }

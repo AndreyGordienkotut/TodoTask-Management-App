@@ -2,6 +2,7 @@ package com.taskService.service;
 
 import com.taskService.dto.*;
 import com.taskService.exception.ResourceNotFoundException;
+import com.taskService.model.Frequency_repeat;
 import com.taskService.model.Priority;
 import com.taskService.model.Task;
 import com.taskService.model.Status;
@@ -25,6 +26,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,6 +47,7 @@ class TaskServiceTest {
     private Pageable pageable;
     private List<Task> taskList;
     private Long userId;
+    private Task repeatingTask;
     @BeforeEach
     void setUp() {
         task = new Task();
@@ -73,6 +76,15 @@ class TaskServiceTest {
                 .status(Status.COMPLETED).priority(Priority.MEDIUM).build();
 
         taskList = List.of(task1, task2);
+        repeatingTask = Task.builder()
+                .id(10L)
+                .userId(userId)
+                .title("Repeating Task")
+                .status(Status.ARCHIVED)
+                .isRepeat(true)
+                .frequencyRepeat(Frequency_repeat.DAY)
+                .parentTaskId(null)
+                .build();
     }
 
     @Test
@@ -250,6 +262,15 @@ class TaskServiceTest {
         verify(taskRepository, times(1)).save(any(Task.class));
     }
     @Test
+    @DisplayName("IllegalStateException - archiveTask (Is Repeating)")
+    void illegalStateArchiveTask_IsRepeating() {
+        when(taskRepository.findById(10L)).thenReturn(Optional.of(repeatingTask));
+
+        assertThrows(IllegalStateException.class, () -> taskService.archiveTask(10L, userId));
+
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+    @Test
     @DisplayName("ResourceNotFoundException - archiveTask")
     void resourceNotFoundArchiveTask(){
         when(taskRepository.findById(1L)).thenReturn(Optional.empty());
@@ -278,6 +299,40 @@ class TaskServiceTest {
         verify(taskRepository, times(1)).findAllByUserIdAndStatus(userId, Status.ARCHIVED, pageable);
     }
     @Test
+    @DisplayName("Success - archiveTaskSeries")
+    void successArchiveTaskSeries() {
+        Task child1 = Task.builder().id(11L).userId(userId).status(Status.ARCHIVED).isRepeat(true).parentTaskId(10L).build();
+        Task child2 = Task.builder().id(12L).userId(userId).status(Status.ARCHIVED).isRepeat(true).parentTaskId(10L).build();
+        List<Task> series = List.of(repeatingTask, child1, child2);
+
+        when(taskRepository.findById(10L)).thenReturn(Optional.of(repeatingTask));
+        when(taskRepository.findRepeatGroupTasks(10L, userId)).thenReturn(series);
+        when(taskRepository.saveAll(anyList())).thenReturn(series.stream()
+                .peek(t -> t.setStatus(Status.ARCHIVED))
+                .collect(Collectors.toList()));
+
+        List<TaskResponseDto> results = taskService.archiveTaskSeries(10L, userId);
+
+        assertThat(results).hasSize(3);
+        assertThat(results.stream().allMatch(r -> r.getStatus() == Status.ARCHIVED)).isTrue();
+        verify(taskRepository, times(1)).saveAll(anyList());
+    }
+    @Test
+    @DisplayName("ResourceNotFoundException - archiveTaskSeries - initial task not found")
+    void resourceNotFoundArchiveTaskSeries() {
+        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> taskService.archiveTaskSeries(99L, userId));
+        verify(taskRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("SecurityException - archiveTaskSeries - initial task access denied")
+    void securityExceptionArchiveTaskSeries() {
+        when(taskRepository.findById(10L)).thenReturn(Optional.of(repeatingTask));
+        assertThrows(SecurityException.class, () -> taskService.archiveTaskSeries(10L, 99L));
+        verify(taskRepository, never()).saveAll(anyList());
+    }
+    @Test
     @DisplayName("Success - deleteTask")
     void successDeleteTask() {
         task.setStatus(Status.ARCHIVED);
@@ -301,11 +356,52 @@ class TaskServiceTest {
         verify(taskRepository, never()).delete(any(Task.class));
     }
     @Test
-    @DisplayName("IllegalStateException - deleteTask")
+    @DisplayName("IllegalStateException - deleteTask - not ARCHIVED)")
     void illegalStateDeleteTask() {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
         assertThrows(IllegalStateException.class, () -> taskService.deleteTask(1L,1L));
         verify(taskRepository, never()).delete(any(Task.class));
+    }
+    @Test
+    @DisplayName("IllegalStateException - deleteTask - is Repeating")
+    void illegalStateDeleteTask_IsRepeat() {
+        repeatingTask.setStatus(Status.ARCHIVED);
+        when(taskRepository.findById(10L)).thenReturn(Optional.of(repeatingTask));
+        assertThrows(IllegalStateException.class, () -> taskService.deleteTask(10L, userId));
+        verify(taskRepository, never()).delete(any(Task.class));
+    }
+    @Test
+    @DisplayName("Success - deleteRepeatTaskSeries")
+    void successDeleteRepeatTaskSeries() {
+        Task parentArchived = Task.builder().id(10L).userId(userId).status(Status.ARCHIVED).isRepeat(true).parentTaskId(null).build();
+        Task childArchived = Task.builder().id(11L).userId(userId).status(Status.ARCHIVED).isRepeat(true).parentTaskId(10L).build();
+        List<Task> archivedSeries = List.of(parentArchived, childArchived);
+
+        when(taskRepository.findById(10L)).thenReturn(Optional.of(parentArchived));
+        when(taskRepository.findRepeatGroupTasks(10L, userId)).thenReturn(archivedSeries);
+
+        taskService.deleteRepeatTaskSeries(10L, userId);
+
+        verify(taskRepository, times(1)).deleteAllInBatch(archivedSeries);
+    }
+    @Test
+    @DisplayName("IllegalStateException - deleteRepeatTaskSeries - not all ARCHIVED)")
+    void illegalStateDeleteRepeatTaskSeries_NotAllArchived() {
+        Task parentArchived = Task.builder().id(10L).userId(userId).status(Status.ARCHIVED).isRepeat(true).parentTaskId(null).build();
+        Task childActive = Task.builder().id(11L).userId(userId).status(Status.NOT_COMPLETED).isRepeat(true).parentTaskId(10L).build();
+        List<Task> mixedSeries = List.of(parentArchived, childActive);
+
+        when(taskRepository.findById(10L)).thenReturn(Optional.of(parentArchived));
+        when(taskRepository.findRepeatGroupTasks(10L, userId)).thenReturn(mixedSeries);
+        assertThrows(IllegalStateException.class, () -> taskService.deleteRepeatTaskSeries(10L, userId));
+        verify(taskRepository, never()).deleteAllInBatch(anyList());
+    }
+    @Test
+    @DisplayName("AccessDeniedException - deleteRepeatTaskSeries")
+    void accessDeniedDeleteRepeatTaskSeries() {
+        when(taskRepository.findById(10L)).thenReturn(Optional.of(repeatingTask));
+        assertThrows(AccessDeniedException.class, () -> taskService.deleteRepeatTaskSeries(10L, 99L));
+        verify(taskRepository, never()).deleteAllInBatch(anyList());
     }
     @Test
     @DisplayName("Success - deleteTasksBulk")

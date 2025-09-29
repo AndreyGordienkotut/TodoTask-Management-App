@@ -33,4 +33,7 @@ public interface TaskRepository extends JpaRepository<Task, Long>, JpaSpecificat
     List<Task> findByDueDateBeforeAndStatus(LocalDateTime dateTime, Status status);
     List<Task> findByDueDateBetweenAndStatusAndNearlyOverdueNotified(
             LocalDateTime start, LocalDateTime end, Status status, boolean nearlyOverdueNotified);
+    List<Task> findByDueDateBeforeAndStatusAndIsRepeat(LocalDateTime dateTime, Status status, boolean repeat);
+    @Query("SELECT t FROM Task t WHERE t.userId = :userId AND (t.id = :groupId OR t.parentTaskId = :groupId)")
+    List<Task> findRepeatGroupTasks(@Param("groupId") Long groupId, @Param("userId") Long userId);
 }

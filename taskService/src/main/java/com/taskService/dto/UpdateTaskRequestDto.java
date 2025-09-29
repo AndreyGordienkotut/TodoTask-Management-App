@@ -1,5 +1,6 @@
 package com.taskService.dto;
 
+import com.taskService.model.Frequency_repeat;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,5 +20,8 @@ public class UpdateTaskRequestDto {
     @Size(min = 3, max = 500, message = "Description must be between 3 and 500 characters")
     private String description;
     private LocalDateTime date;
+    private LocalDateTime dueDate;
+    private boolean isRepeat;
+    private Frequency_repeat frequency_repeat;
 
 }

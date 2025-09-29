@@ -122,6 +122,12 @@ public class TaskController {
         TaskResponseDto taskResponseDto = taskService.archiveTask(id, userId);
         return ResponseEntity.ok(taskResponseDto);
     }
+    @DeleteMapping("/{id}/series/archive")
+    public ResponseEntity<List<TaskResponseDto>> archiveSeries(@PathVariable Long id, Principal principal) {
+        Long userId = Long.parseLong(principal.getName());
+        List<TaskResponseDto> taskResponseDtos = taskService.archiveTaskSeries(id, userId);
+        return ResponseEntity.ok(taskResponseDtos);
+    }
 
     @GetMapping("/archived")
     public ResponseEntity<Page<TaskResponseDto>> getArchivedTasks(
@@ -160,6 +166,12 @@ public class TaskController {
     public ResponseEntity<Void> deleteTask(@PathVariable Long id, Principal principal) {
         Long userId = Long.parseLong(principal.getName());
         taskService.deleteTask(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+    @DeleteMapping("/{id}/series/permanent")
+    public ResponseEntity<Void> deleteArchivedTaskSeries(@PathVariable Long id, Principal principal) {
+        Long userId = Long.parseLong(principal.getName());
+        taskService.deleteRepeatTaskSeries(id, userId);
         return ResponseEntity.noContent().build();
     }
     @DeleteMapping("/bulk")

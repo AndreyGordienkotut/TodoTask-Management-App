@@ -1,5 +1,6 @@
 package com.taskService.dto;
 
+import com.taskService.model.Frequency_repeat;
 import com.taskService.model.Priority;
 import com.taskService.model.Status;
 import jakarta.validation.constraints.FutureOrPresent;
@@ -30,5 +31,8 @@ public class TaskRequestDto {
     private Status status;
     @NotNull(message = "Priority is required")
     private Priority priority;
+    @NotNull(message = "isRepeat is required")
+    private boolean isRepeat;
+    private Frequency_repeat frequency_repeat;
 
 }

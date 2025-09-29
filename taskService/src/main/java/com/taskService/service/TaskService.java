@@ -41,7 +41,9 @@ public class TaskService {
                 task.getDate(),
                 task.getDueDate(),
                 task.getStatus(),
-                task.getPriority()
+                task.getPriority(),
+                task.isRepeat(),
+                task.getFrequencyRepeat()
         );
     }
     @Transactional(readOnly = true)
@@ -74,9 +76,18 @@ public class TaskService {
                 .dueDate(requestDto.getDueDate())
                 .status(requestDto.getStatus())
                 .priority(requestDto.getPriority())
+                .isRepeat(requestDto.isRepeat())
+                .frequencyRepeat(requestDto.getFrequency_repeat())
                 .build();
+        if(requestDto.getDueDate() == null && requestDto.isRepeat()) {
+            throw new IllegalArgumentException ("You cannot create a repeat if dueDate is not set");
+        }
         Task savedTask = taskRepository.save(task);
 
+        if (savedTask.isRepeat() && savedTask.getParentTaskId() == null) {
+            savedTask.setParentTaskId(savedTask.getId());
+            savedTask = taskRepository.save(savedTask);
+        }
         try {
 
             UserDto user = userServiceClient.getUserById(userId);
@@ -105,9 +116,15 @@ public class TaskService {
         if (!existTask.getUserId().equals(userId)) {
             throw new AccessDeniedException("You don't have permission to update this task");
         }
+        if(dto.getDueDate() == null && dto.isRepeat()) {
+            throw new IllegalArgumentException ("You cannot create a repeat if dueDate is not set");
+        }
         if (dto.getTitle() != null) existTask.setTitle(dto.getTitle());
         if (dto.getDescription() != null) existTask.setDescription(dto.getDescription());
         if (dto.getDate() != null) existTask.setDate(dto.getDate());
+        if(dto.getDueDate() != null) existTask.setDueDate(dto.getDueDate());
+        if(dto.isRepeat()) existTask.setRepeat(dto.isRepeat());
+        if(dto.getFrequency_repeat() != null) existTask.setFrequencyRepeat(dto.getFrequency_repeat());
         Task savedTask = taskRepository.save(existTask);
 
         return convertToDto(savedTask);
@@ -139,9 +156,37 @@ public class TaskService {
         if (!task.getUserId().equals(userId)) {
             throw new SecurityException("Cannot archive task of another user");
         }
+        if (task.isRepeat()) {
+            throw new IllegalStateException("To archive a recurring task, use an endpoint '/series/archive'.");
+        }
         task.setStatus(Status.ARCHIVED);
         Task savedTask = taskRepository.save(task);
         return convertToDto(savedTask);
+
+    }
+    @Transactional
+    public List<TaskResponseDto> archiveTaskSeries(Long taskId, Long userId) {
+        Task currentTask = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!currentTask.getUserId().equals(userId)) {
+            throw new SecurityException("Cannot archive task of another user");
+        }
+        Long groupId = currentTask.getParentTaskId() != null ? currentTask.getParentTaskId() : currentTask.getId();
+
+        List<Task> seriesTasks = taskRepository.findRepeatGroupTasks(groupId, userId);
+
+        if (seriesTasks.isEmpty()) {
+            throw new ResourceNotFoundException("No tasks found in the repeat series with ID: " + groupId);
+        }
+        List<Task> updatedTasks = seriesTasks.stream()
+                .peek(task -> task.setStatus(Status.ARCHIVED))
+                .collect(Collectors.toList());
+
+        List<Task> savedTasks = taskRepository.saveAll(updatedTasks);
+
+        return savedTasks.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
 
     }
     @Transactional(readOnly = true)
@@ -162,12 +207,37 @@ public class TaskService {
         if (!task.getUserId().equals(userId)) {
             throw new AccessDeniedException("You don't have permission to view this task");
         }
+        if (task.isRepeat()) {
+            throw new IllegalStateException("To archive a recurring task, use an endpoint '/series/permanent'.");
+        }
         if (task.getStatus() != Status.ARCHIVED) {
             throw new IllegalStateException("Only archived tasks can be permanently deleted");
         }
         taskRepository.delete(task);
 
     }
+        @Transactional
+        public void deleteRepeatTaskSeries(Long taskId, Long userId) {
+            Task currentTask = taskRepository.findById(taskId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+
+            if (!currentTask.getUserId().equals(userId)) {
+                throw new AccessDeniedException("You don't have permission to delete this task");
+            }
+            Long groupId = currentTask.getParentTaskId() != null ? currentTask.getParentTaskId() : currentTask.getId();
+
+            List<Task> seriesTasks = taskRepository.findRepeatGroupTasks(groupId, userId);
+            if (seriesTasks.isEmpty()) {
+                throw new ResourceNotFoundException("Repeat series not found.");
+            }
+            boolean allArchived = seriesTasks.stream()
+                    .allMatch(t -> t.getStatus() == Status.ARCHIVED);
+            if (!allArchived) {
+                throw new IllegalStateException("Only fully archived series can be permanently deleted.");
+            }
+            taskRepository.deleteAllInBatch(seriesTasks);
+
+        }
     @Transactional
     public void deleteTasksBulk(List<Long> taskIds, Long userId) {
         if (taskIds == null || taskIds.isEmpty()) {
@@ -177,6 +247,9 @@ public class TaskService {
         tasks.forEach(task -> {
             if (!task.getUserId().equals(userId)) {
                 throw new SecurityException("Cannot delete tasks of another user");
+            }
+            if (task.isRepeat()) {
+                throw new IllegalStateException("To remove a duplicate series, use the endpoint '/series/permanent'.");
             }
             if (task.getStatus() != Status.ARCHIVED) {
                 throw new IllegalStateException("Only archived tasks can be permanently deleted");
