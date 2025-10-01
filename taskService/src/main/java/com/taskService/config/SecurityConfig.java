@@ -29,6 +29,10 @@ public class SecurityConfig {
                         .requestMatchers("/eureka/**").permitAll()
                         .requestMatchers("/api/tasks/create-test-task/**").permitAll()
                         .requestMatchers("/api/tasks").authenticated()
+                                .requestMatchers("/v3/api-docs/**").permitAll()
+                                .requestMatchers("/swagger-ui/**").permitAll()
+                                .requestMatchers("/swagger-ui.html").permitAll()
+                                .requestMatchers("/webjars/**").permitAll()
                         .anyRequest().permitAll()
 //                        .anyRequest().authenticated()
                 );
