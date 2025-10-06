@@ -1,0 +1,306 @@
+package com.taskService.service;
+
+import com.taskService.config.NotificationServiceClient;
+import com.taskService.config.UserServiceClient;
+import com.taskService.dto.*;
+import com.taskService.exception.ResourceNotFoundException;
+import com.taskService.model.Priority;
+import com.taskService.model.Status;
+import com.taskService.model.Task;
+import com.taskService.repository.TaskRepository;
+import jakarta.validation.constraints.NotBlank;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+    @Slf4j
+@Service
+@RequiredArgsConstructor
+public class TaskService {
+    private final TaskRepository taskRepository;
+        private final NotificationServiceClient notificationServiceClient;
+        private final UserServiceClient userServiceClient;
+    private TaskResponseDto convertToDto(Task task) {
+        return new TaskResponseDto(
+                task.getId(),
+                task.getUserId(),
+                task.getTitle(),
+                task.getDescription(),
+                task.getDate(),
+                task.getDueDate(),
+                task.getStatus(),
+                task.getPriority(),
+                task.isRepeat(),
+                task.getFrequencyRepeat()
+        );
+    }
+    @Transactional(readOnly = true)
+    public Page<TaskResponseDto> getAllTasks(Long userId, Pageable pageable) {
+        Page<Task> tasks = taskRepository.findAllByUserId(userId, pageable);
+        return tasks.map(this::convertToDto);
+    }
+    @Transactional(readOnly = true)
+    public Page<TaskResponseDto> searchTasks(Long userId, String keyword, Pageable pageable) {
+        Page<Task> tasks = taskRepository.searchByKeyword(userId, keyword, pageable);
+        return tasks.map(this::convertToDto);
+    }
+    @Transactional(readOnly = true)
+    public TaskResponseDto getTaskById(Long taskId, Long userId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!task.getUserId().equals(userId)) {
+            throw new AccessDeniedException("You don't have permission to view this task");
+        }
+        return convertToDto(task);
+    }
+
+    @Transactional
+    public TaskResponseDto createTask(TaskRequestDto requestDto, Long userId) {
+        Task task = Task.builder()
+                .userId(userId)
+                .title(requestDto.getTitle())
+                .description(requestDto.getDescription())
+                .date(requestDto.getDate())
+                .dueDate(requestDto.getDueDate())
+                .status(requestDto.getStatus())
+                .priority(requestDto.getPriority())
+                .isRepeat(requestDto.isRepeat())
+                .frequencyRepeat(requestDto.getFrequency_repeat())
+                .build();
+        if(requestDto.getDueDate() == null && requestDto.isRepeat()) {
+            throw new IllegalArgumentException ("You cannot create a repeat if dueDate is not set");
+        }
+        Task savedTask = taskRepository.save(task);
+
+        if (savedTask.isRepeat() && savedTask.getParentTaskId() == null) {
+            savedTask.setParentTaskId(savedTask.getId());
+            savedTask = taskRepository.save(savedTask);
+        }
+        try {
+
+            UserDto user = userServiceClient.getUserById(userId);
+            if (user != null) {
+                NotificationServiceRequest notificationRequest = new NotificationServiceRequest(
+                        user.getId(),
+                        user.getEmail(),
+                       null,
+                        "New task: " + savedTask.getTitle(),
+                        "Hello, " + user.getName() + "!\nYou have new task '" + savedTask.getTitle() + "'.",
+                        "EMAIL",
+                        "SENT",
+                        LocalDateTime.now()
+                );
+                notificationServiceClient.sendNotification(notificationRequest);
+            }
+        } catch (Exception e) {
+            log.error("Failed to send notification to user with ID {}. Error: {}", userId, e.getMessage(), e);
+        }
+        return convertToDto(savedTask);
+    }
+
+    public TaskResponseDto updateTask(Long taskId, UpdateTaskRequestDto dto, Long userId) {
+        Task existTask = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!existTask.getUserId().equals(userId)) {
+            throw new AccessDeniedException("You don't have permission to update this task");
+        }
+        if(dto.getDueDate() == null && dto.isRepeat()) {
+            throw new IllegalArgumentException ("You cannot create a repeat if dueDate is not set");
+        }
+        if (dto.getTitle() != null) existTask.setTitle(dto.getTitle());
+        if (dto.getDescription() != null) existTask.setDescription(dto.getDescription());
+        if (dto.getDate() != null) existTask.setDate(dto.getDate());
+        if(dto.getDueDate() != null) existTask.setDueDate(dto.getDueDate());
+        if(dto.isRepeat()) existTask.setRepeat(dto.isRepeat());
+        if(dto.getFrequency_repeat() != null) existTask.setFrequencyRepeat(dto.getFrequency_repeat());
+        Task savedTask = taskRepository.save(existTask);
+
+        return convertToDto(savedTask);
+    }
+    public TaskResponseDto updateStatus(Long taskId, UpdateStatusRequestDto dto, Long userId) {
+        Task existTask = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!existTask.getUserId().equals(userId)) {
+            throw new AccessDeniedException("You don't have permission to update this task");
+        }
+        existTask.setStatus(dto.getStatus());
+        Task savedTask = taskRepository.save(existTask);
+        return convertToDto(savedTask);
+    }
+    public TaskResponseDto updatePriority(Long taskId, UpdatePriorityRequestDto dto, Long userId) {
+        Task existTask = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!existTask.getUserId().equals(userId)) {
+            throw new AccessDeniedException("You don't have permission to update this task");
+        }
+        existTask.setPriority(dto.getPriority());
+        Task savedTask = taskRepository.save(existTask);
+        return convertToDto(savedTask);
+    }
+    @Transactional
+    public TaskResponseDto archiveTask(Long taskId, Long userId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!task.getUserId().equals(userId)) {
+            throw new SecurityException("Cannot archive task of another user");
+        }
+        if (task.isRepeat()) {
+            throw new IllegalStateException("To archive a recurring task, use an endpoint '/series/archive'.");
+        }
+        task.setStatus(Status.ARCHIVED);
+        Task savedTask = taskRepository.save(task);
+        return convertToDto(savedTask);
+
+    }
+    @Transactional
+    public List<TaskResponseDto> archiveTaskSeries(Long taskId, Long userId) {
+        Task currentTask = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!currentTask.getUserId().equals(userId)) {
+            throw new SecurityException("Cannot archive task of another user");
+        }
+        Long groupId = currentTask.getParentTaskId() != null ? currentTask.getParentTaskId() : currentTask.getId();
+
+        List<Task> seriesTasks = taskRepository.findRepeatGroupTasks(groupId, userId);
+
+        if (seriesTasks.isEmpty()) {
+            throw new ResourceNotFoundException("No tasks found in the repeat series with ID: " + groupId);
+        }
+        List<Task> updatedTasks = seriesTasks.stream()
+                .peek(task -> task.setStatus(Status.ARCHIVED))
+                .collect(Collectors.toList());
+
+        List<Task> savedTasks = taskRepository.saveAll(updatedTasks);
+
+        return savedTasks.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+
+    }
+    @Transactional(readOnly = true)
+    public Page<TaskResponseDto> getArchivedTasks(Long userId, Pageable pageable) {
+        return taskRepository.findAllByUserIdAndStatus(userId,Status.ARCHIVED,pageable)
+                .map(this::convertToDto);
+    }
+    @Transactional(readOnly = true)
+    public Page<TaskResponseDto> getActivedTasks(Long userId, Pageable pageable) {
+        return taskRepository.findAllByUserIdAndStatusNot(userId,Status.ARCHIVED,pageable)
+                .map(this::convertToDto);
+    }
+
+
+    public void  deleteTask(Long taskId, Long userId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+        if (!task.getUserId().equals(userId)) {
+            throw new AccessDeniedException("You don't have permission to view this task");
+        }
+        if (task.isRepeat()) {
+            throw new IllegalStateException("To archive a recurring task, use an endpoint '/series/permanent'.");
+        }
+        if (task.getStatus() != Status.ARCHIVED) {
+            throw new IllegalStateException("Only archived tasks can be permanently deleted");
+        }
+        taskRepository.delete(task);
+
+    }
+        @Transactional
+        public void deleteRepeatTaskSeries(Long taskId, Long userId) {
+            Task currentTask = taskRepository.findById(taskId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
+
+            if (!currentTask.getUserId().equals(userId)) {
+                throw new AccessDeniedException("You don't have permission to delete this task");
+            }
+            Long groupId = currentTask.getParentTaskId() != null ? currentTask.getParentTaskId() : currentTask.getId();
+
+            List<Task> seriesTasks = taskRepository.findRepeatGroupTasks(groupId, userId);
+            if (seriesTasks.isEmpty()) {
+                throw new ResourceNotFoundException("Repeat series not found.");
+            }
+            boolean allArchived = seriesTasks.stream()
+                    .allMatch(t -> t.getStatus() == Status.ARCHIVED);
+            if (!allArchived) {
+                throw new IllegalStateException("Only fully archived series can be permanently deleted.");
+            }
+            taskRepository.deleteAllInBatch(seriesTasks);
+
+        }
+    @Transactional
+    public void deleteTasksBulk(List<Long> taskIds, Long userId) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            throw new IllegalArgumentException("Task IDs cannot be empty");
+        }
+        List<Task> tasks = taskRepository.findAllById(taskIds);
+        tasks.forEach(task -> {
+            if (!task.getUserId().equals(userId)) {
+                throw new SecurityException("Cannot delete tasks of another user");
+            }
+            if (task.isRepeat()) {
+                throw new IllegalStateException("To remove a duplicate series, use the endpoint '/series/permanent'.");
+            }
+            if (task.getStatus() != Status.ARCHIVED) {
+                throw new IllegalStateException("Only archived tasks can be permanently deleted");
+            }
+        });
+        taskRepository.deleteAllInBatch(tasks);
+    }
+    public List<TaskResponseDto> filterTasks(Long userId, Status status, LocalDate fromDate, LocalDate toDate, Priority priority) {
+        Specification<Task> spec = Specification.where(byUserId(userId));
+        if (status != null) {
+            spec = spec.and(byStatus(status));
+        }
+        if (priority != null) {
+            spec = spec.and(byPriority(priority));
+        }
+        if (fromDate != null && toDate != null) {
+            spec = spec.and(byDateBetween(fromDate, toDate));
+        } else if (fromDate != null) {
+            spec = spec.and(byDateFrom(fromDate));
+        } else if (toDate != null) {
+            spec = spec.and(byDateTo(toDate));
+        }
+
+        return taskRepository.findAll(spec).stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    private Specification<Task> byUserId(Long userId) {
+        return (root, query, cb) -> cb.equal(root.get("userId"), userId);
+    }
+
+    private Specification<Task> byStatus(Status status) {
+        return (root, query, cb) -> cb.equal(root.get("status"), status);
+    }
+
+    private Specification<Task> byPriority(Priority priority) {
+        return (root, query, cb) -> cb.equal(root.get("priority"), priority);
+    }
+
+    private Specification<Task> byDateBetween(LocalDate from, LocalDate to) {
+        return (root, query, cb) -> cb.between(root.get("date"), from, to);
+    }
+
+    private Specification<Task> byDateFrom(LocalDate from) {
+        return (root, query, cb) -> cb.greaterThanOrEqualTo(root.get("date"), from);
+    }
+
+    private Specification<Task> byDateTo(LocalDate to) {
+        return (root, query, cb) -> cb.lessThanOrEqualTo(root.get("date"), to);
+    }
+
+
+
+}
