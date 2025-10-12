@@ -2,7 +2,6 @@ package com.notificationService.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.notificationService.config.TestSecurityConfig;
-import com.notificationService.config.UserServiceClient;
 import com.notificationService.dto.NotificationServiceRequest;
 import com.notificationService.dto.UserDto;
 import com.notificationService.model.Channel;
@@ -57,8 +56,6 @@ public class NotificationControllerIntegrationTest {
     private ObjectMapper objectMapper;
     @Autowired
     private NotificationRepository notificationRepository;
-    @MockBean
-    private UserServiceClient userServiceClient;
     @MockBean
     private EmailService emailService;
     @MockBean

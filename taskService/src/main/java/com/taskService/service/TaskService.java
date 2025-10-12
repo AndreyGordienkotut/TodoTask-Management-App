@@ -1,7 +1,5 @@
 package com.taskService.service;
 
-import com.taskService.config.NotificationServiceClient;
-import com.taskService.config.UserServiceClient;
 import com.taskService.dto.*;
 import com.taskService.exception.ResourceNotFoundException;
 import com.taskService.model.Priority;
@@ -30,8 +28,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TaskService {
     private final TaskRepository taskRepository;
-        private final NotificationServiceClient notificationServiceClient;
-        private final UserServiceClient userServiceClient;
     private TaskResponseDto convertToDto(Task task) {
         return new TaskResponseDto(
                 task.getId(),
@@ -87,25 +83,6 @@ public class TaskService {
         if (savedTask.isRepeat() && savedTask.getParentTaskId() == null) {
             savedTask.setParentTaskId(savedTask.getId());
             savedTask = taskRepository.save(savedTask);
-        }
-        try {
-
-            UserDto user = userServiceClient.getUserById(userId);
-            if (user != null) {
-                NotificationServiceRequest notificationRequest = new NotificationServiceRequest(
-                        user.getId(),
-                        user.getEmail(),
-                       null,
-                        "New task: " + savedTask.getTitle(),
-                        "Hello, " + user.getName() + "!\nYou have new task '" + savedTask.getTitle() + "'.",
-                        "EMAIL",
-                        "SENT",
-                        LocalDateTime.now()
-                );
-                notificationServiceClient.sendNotification(notificationRequest);
-            }
-        } catch (Exception e) {
-            log.error("Failed to send notification to user with ID {}. Error: {}", userId, e.getMessage(), e);
         }
         return convertToDto(savedTask);
     }

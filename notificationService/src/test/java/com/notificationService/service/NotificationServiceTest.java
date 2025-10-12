@@ -1,8 +1,8 @@
 package com.notificationService.service;
 
-import com.notificationService.config.UserServiceClient;
 import com.notificationService.dto.NotificationServiceRequest;
 import com.notificationService.dto.UserDto;
+import com.notificationService.exception.NotificationProcessingException;
 import com.notificationService.model.Channel;
 import com.notificationService.model.Notification;
 import com.notificationService.model.Notification_status;
@@ -39,12 +39,9 @@ public class NotificationServiceTest {
     private NotificationService notificationService;
 
 
-    private Notification notification;
     private NotificationServiceRequest emailRequest;
     private NotificationServiceRequest telegramRequest;
-    private UserDto userDto;
     private Notification pendingNotification;
-    private Long userId;
     @BeforeEach
     void setUp() {
         emailRequest = NotificationServiceRequest.builder()
@@ -64,12 +61,6 @@ public class NotificationServiceTest {
                 .channel(Channel.TELEGRAM)
                 .status(Notification_status.SENT)
                 .atDate(LocalDateTime.now())
-                .build();
-        userDto = UserDto.builder()
-                .id(1L)
-                .name("name")
-                .email("recipient@example.com")
-                .telegramChatId(1L)
                 .build();
         pendingNotification = Notification.builder()
                 .id(100L)
@@ -138,7 +129,8 @@ void successSendNotification() throws Exception {
         String errorMessage = "SMTP server failed";
         doThrow(new RuntimeException(errorMessage))
                 .when(emailService).sendSimpleEmail(anyString(), anyString(), anyString());
-        notificationService.processNotificationAsync(pendingNotification.getId(), emailRequest);
+        assertThrows(NotificationProcessingException.class,
+                () -> notificationService.processNotificationAsync(pendingNotification.getId(), emailRequest));
 
         verify(emailService, times(1)).sendSimpleEmail(anyString(), anyString(), anyString());
 

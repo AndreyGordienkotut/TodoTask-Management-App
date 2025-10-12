@@ -1,9 +1,10 @@
 package com.taskService.service;
 
-import com.taskService.config.NotificationServiceClient;
 import com.taskService.config.UserServiceClient;
-import com.taskService.dto.NotificationServiceRequest;
+import by.info_microservice.core.TaskEventDto;
 import com.taskService.dto.UserDto;
+import com.taskService.exception.TaskEventPublishException;
+import com.taskService.exception.TaskNotificationException;
 import com.taskService.model.Frequency_repeat;
 import com.taskService.model.Status;
 import com.taskService.model.Task;
@@ -24,7 +25,7 @@ import java.util.stream.Collectors;
 public class TaskCheckScheduler {
     private final TaskRepository taskRepository;
     private final UserServiceClient userServiceClient;
-    private final NotificationServiceClient notificationServiceClient;
+    private final TaskEventProducer taskEventProducer;
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void checkAllTaskStatuses() {
@@ -85,44 +86,60 @@ public class TaskCheckScheduler {
             UserDto user = userServiceClient.getUserById(task.getUserId());
 
             if (user == null) {
-                log.warn("User {} not found, notification not send", task.getUserId());
-                return;
+                throw new TaskNotificationException("User " + task.getUserId() + " not found, notification not sent");
+            }
+            String eventType;
+            if (subject.contains("soon be overdue")) {
+                eventType = "TASK_SOON_OVERDUE";
+            } else if (subject.contains("is overdue")) {
+                eventType = "TASK_OVERDUE";
+            } else {
+                eventType = "TASK_REMINDER";
             }
             log.info("telegramchatId {}",user.getTelegramChatId());
-            NotificationServiceRequest request = new NotificationServiceRequest();
             if (user.getTelegramChatId() != null) {
-                 request = NotificationServiceRequest.builder()
-                        .userId(task.getUserId())
-                        .recipientTelegramId(user.getTelegramChatId())
+                TaskEventDto telegramRequest = TaskEventDto.builder()
+                        .taskId(task.getId())
+                        .userId(user.getId())
                         .subject(subject)
+                        .title(task.getTitle())
+                        .description(task.getDescription())
+                        .dueDate(task.getDueDate())
+                        .eventType(eventType)
                         .message(message)
-                        .channel("TELEGRAM")
-                        .status("PENDING")
                         .createdAt(LocalDateTime.now())
+                        .status("PENDING")
+                        .channel("TELEGRAM")
+                        .recipientTelegramId(user.getTelegramChatId())
                         .build();
 
-                notificationServiceClient.sendNotification(request);
+                taskEventProducer.sendTaskEvent(telegramRequest);
                 log.info("Telegram notification sent: {} → {}", user.getTelegramChatId(), subject);
 
             }
             if(user.getEmail() != null) {
-            NotificationServiceRequest request2 = new NotificationServiceRequest();
-                 request2 = NotificationServiceRequest.builder()
-                        .userId(task.getUserId())
-                        .recipient(user.getEmail())
+                TaskEventDto telegramRequest = TaskEventDto.builder()
+                        .taskId(task.getId())
+                        .userId(user.getId())
                         .subject(subject)
+                        .title(task.getTitle())
+                        .description(task.getDescription())
+                        .dueDate(task.getDueDate())
+                        .eventType(eventType)
                         .message(message)
-                        .channel("EMAIL")
-                        .status("PENDING")
                         .createdAt(LocalDateTime.now())
+                        .status("PENDING")
+                        .channel("EMAIL")
+                        .recipient(user.getEmail())
                         .build();
 
-
-            notificationServiceClient.sendNotification(request2);
+                taskEventProducer.sendTaskEvent(telegramRequest);
             log.info("Notification sending: {} → {}", user.getEmail(), subject);
             }
+        }catch (TaskEventPublishException e) {
+            throw e; // пробрасываем дальше
         } catch (Exception e) {
-            log.error("Error sending task notification {}: {}", task.getId(), e.getMessage(), e);
+            throw new TaskNotificationException("Failed to send notification for taskId=" + task.getId(), e);
         }
     }
 

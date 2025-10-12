@@ -1,12 +1,11 @@
 package com.userService.service;
 
-import com.userService.config.NotificationServiceClient;
+import by.info_microservice.core.UserVerificationEventDto;
 import com.userService.dto.AuthenticationRequestDto;
 import com.userService.dto.AuthenticationResponseDto;
 import com.userService.dto.RefreshTokenRequestDto;
 import com.userService.dto.RegisterRequestDto;
-import com.userService.exception.BadRequestException;
-import com.userService.exception.UserAlreadyExistsException;
+import com.userService.exception.*;
 import com.userService.model.EmailVerificationTokens;
 import com.userService.model.RefreshToken;
 import com.userService.model.User;
@@ -17,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -52,7 +52,7 @@ public class UserServiceTest {
     @Mock
     private AuthenticationManager authenticationManager;
     @Mock
-    private NotificationServiceClient notificationServiceClient;
+    private UserEventProducer userEventProducer;
     @Mock
     private EmailVerificationTokensRepository emailVerificationTokensRepository;
 
@@ -102,7 +102,15 @@ public class UserServiceTest {
         assertThat(response.getUsername()).isEqualTo("test@example.com");
         assertThat(response.getToken()).isEqualTo("mockJwtToken");
         assertThat(response.getRefreshToken()).isEqualTo("validRefreshToken");
+        ArgumentCaptor<UserVerificationEventDto> eventCaptor = ArgumentCaptor.forClass(UserVerificationEventDto.class);
 
+        verify(userEventProducer, times(1)).sendAccountVerificationEvent(eventCaptor.capture());
+
+        UserVerificationEventDto sentEvent = eventCaptor.getValue();
+
+        assertThat(sentEvent.getUserId()).isEqualTo(1L);
+        assertThat(sentEvent.getEmail()).isEqualTo("test@example.com");
+        assertThat(sentEvent.getEventType()).isEqualTo("USER_VERIFICATION_REQUESTED");
         verify(userRepository).findByEmail("test@example.com");
         verify(passwordEncoder).encode("password");
         verify(userRepository).save(any(User.class));
@@ -138,12 +146,12 @@ public class UserServiceTest {
         verify(refreshTokenService).createRefreshToken(1L);
     }
     @Test
-    @DisplayName("BadRequestException - authenticate - Invalid email or password")
+    @DisplayName("InvalidCredentialsException - authenticate - Invalid email or password")
     void authenticateUserFail() {
 
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenThrow(new BadCredentialsException("Invalid credentials"));
-        assertThrows(BadRequestException.class, () -> userService.authenticate(authenticationRequestDto));
+                .thenThrow(new InvalidCredentialsException("Invalid credentials"));
+        assertThrows(InvalidCredentialsException.class, () -> userService.authenticate(authenticationRequestDto));
 
         verify(userRepository, never()).findByEmail(any(String.class));
         verify(jwtService, never()).generateToken(any(User.class));
@@ -204,20 +212,20 @@ public class UserServiceTest {
         verify(emailVerificationTokensRepository).save(tokenEntity);
     }
     @Test
-    @DisplayName("BadRequestException - verifyEmail - Invalid or expired token")
+    @DisplayName("InvalidTokenException - verifyEmail - Invalid or expired token")
     void verifyEmailInvalidToken() {
         when(emailVerificationTokensRepository.findByToken("badToken"))
                 .thenReturn(Optional.empty());
-        assertThrows(BadRequestException.class, () -> userService.verifyEmail("badToken"));
+        assertThrows(InvalidTokenException.class, () -> userService.verifyEmail("badToken"));
         verify(emailVerificationTokensRepository, never()).save(any());
         verify(userRepository, never()).save(any());
     }
     @Test
-    @DisplayName("BadRequestException - verifyEmail - Email verification expired")
+    @DisplayName("TokenExpiredException - verifyEmail - Email verification expired")
     void verifyEmailExpiredToken() {
         tokenEntity.setExpiryAt(LocalDateTime.now().minusDays(1));
         when(emailVerificationTokensRepository.findByToken("expiredToken")).thenReturn(Optional.of(tokenEntity));
-        assertThrows(BadRequestException.class, () -> userService.verifyEmail("expiredToken"));
+        assertThrows(TokenExpiredException.class, () -> userService.verifyEmail("expiredToken"));
         verify(emailVerificationTokensRepository, never()).save(any());
         verify(userRepository, never()).save(any());
     }

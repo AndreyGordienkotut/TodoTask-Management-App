@@ -89,6 +89,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleInvalidSort(PropertyReferenceException ex) {
         return ResponseEntity.badRequest().body("Invalid sort parameter");
     }
+    @ExceptionHandler(TaskNotificationException.class)
+    public ResponseEntity<ErrorDetails> handleTaskNotificationException(TaskNotificationException ex, WebRequest request) {
+        ErrorDetails errorDetails = new ErrorDetails(
+                LocalDateTime.now(),
+                ex.getMessage(),
+                request.getDescription(false),
+                "TASK_NOTIFICATION_FAILED"
+        );
+        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 
+    @ExceptionHandler(TaskEventPublishException.class)
+    public ResponseEntity<ErrorDetails> handleTaskEventPublishException(TaskEventPublishException ex, WebRequest request) {
+        ErrorDetails errorDetails = new ErrorDetails(
+                LocalDateTime.now(),
+                ex.getMessage(),
+                request.getDescription(false),
+                "TASK_EVENT_PUBLISH_FAILED"
+        );
+        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 
 }

@@ -6,15 +6,6 @@ plugins {
 }
 
 dependencies {
-//	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-//	implementation 'org.springframework.boot:spring-boot-starter-security'
-//	implementation 'org.springframework.boot:spring-boot-starter-web'
-//	compileOnly 'org.projectlombok:lombok'
-//	runtimeOnly 'com.mysql:mysql-connector-j'
-//	annotationProcessor 'org.projectlombok:lombok'
-//	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-//	testImplementation 'org.springframework.security:spring-security-test'
-//	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	// jwt
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
@@ -28,11 +19,7 @@ dependencies {
 	testImplementation 'org.testcontainers:postgresql:1.17.5'
 
 	// eureka Client
-//	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
-//	implementation('org.springframework.cloud:spring-cloud-starter-netflix-eureka-client:4.1.1') {
-//		exclude group: "com.fasterxml.jackson.module", module: "jackson-module-jaxb-annotations"
-//		exclude group: "javax.xml.bind"
-//	}
+
 	// loadBalancer
 	implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
 
@@ -42,6 +29,7 @@ dependencies {
 
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
+	implementation project(':core')
 }
 dependencyManagement {
 	imports {
@@ -51,8 +39,3 @@ dependencyManagement {
 test {
 	useJUnitPlatform()
 }
-//configurations {
-//	all {
-//		exclude group: "com.fasterxml.jackson.module", module: "jackson-module-jaxb-annotations"
-//	}
-//}

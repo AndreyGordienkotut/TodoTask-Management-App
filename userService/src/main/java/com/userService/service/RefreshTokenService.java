@@ -2,7 +2,6 @@ package com.userService.service;
 
 
 import com.userService.exception.BadRequestException;
-import com.userService.exception.ResourceNotFoundException;
 import com.userService.model.RefreshToken;
 import com.userService.model.User;
 import com.userService.repository.RefreshTokenRepository;

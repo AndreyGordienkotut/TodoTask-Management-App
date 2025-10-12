@@ -1,9 +1,10 @@
 package com.notificationService.service;
 
-import com.notificationService.config.UserServiceClient;
+
 //import com.notificationService.config.UserServiceClientF;
 import com.notificationService.dto.NotificationServiceRequest;
 import com.notificationService.dto.UserDto;
+import com.notificationService.exception.*;
 import com.notificationService.model.Channel;
 import com.notificationService.model.Notification;
 import com.notificationService.model.Notification_status;
@@ -26,6 +27,9 @@ public class NotificationService {
     private final EmailService emailService;
     private final TelegramService telegramService;
     public void sendNotification(NotificationServiceRequest request) {
+        if (request.getChannel() == null || request.getMessage() == null) {
+            throw new InvalidNotificationRequestException("Channel and message must not be null");
+        }
          Notification notification = Notification.builder()
             .userId(request.getUserId())
             .recipient(request.getRecipient())
@@ -44,25 +48,45 @@ public class NotificationService {
     @Async("taskExecutor")
     public void processNotificationAsync(Long notificationId, NotificationServiceRequest request) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new RuntimeException("Notification not found"));
-
+                .orElseThrow(() -> new NotificationNotFoundException("Notification with id="  + notificationId + " not found"));
         try {
             switch (request.getChannel()) {
-                case EMAIL -> emailService.sendSimpleEmail(request.getRecipient(),
-                        request.getSubject(),
-                        request.getMessage());
-                case TELEGRAM -> telegramService.sendMessage(request.getRecipientTelegramId(),
-                        request.getMessage());
+                case EMAIL -> {
+                    try {
+                        emailService.sendSimpleEmail(request.getRecipient(),
+                                request.getSubject(),
+                                request.getMessage());
+                        notification.setStatus(Notification_status.SENT);
+                    } catch (Exception e) {
+                        notification.setStatus(Notification_status.FAILED);
+                        notification.setError_message(e.getMessage());
+                        //throw new EmailSendException("Failed to send email to " + request.getRecipient(), e);
+                    }
+                }
+                case TELEGRAM -> {
+                    try {
+                        telegramService.sendMessage(request.getRecipientTelegramId(),
+                                request.getMessage());
+                        notification.setStatus(Notification_status.SENT);
+                    } catch (Exception e) {
+                        notification.setStatus(Notification_status.FAILED);
+                        notification.setSentAt(LocalDateTime.now());
+                        //throw new TelegramSendException("Failed to send telegram to " + request.getRecipientTelegramId(), e);
+                    }
+                }
+                default -> throw new InvalidNotificationRequestException("Unsupported channel: " + request.getChannel());
             }
 
-            notification.setStatus(Notification_status.SENT);
+//            notification.setStatus(Notification_status.SENT);
             notification.setSentAt(LocalDateTime.now());
-        } catch (Exception e) {
+        } catch (RuntimeException ex) {
+            log.error("Notification {} failed: {}", notification.getId(), ex.getMessage(), ex);
             notification.setStatus(Notification_status.FAILED);
-            notification.setError_message(e.getMessage());
-            log.error("Failed to send notification {}: {}", notification.getId(), e.getMessage(), e);
+            throw new NotificationProcessingException("Notification processing failed for id=" + notification.getId(), ex);
+        }finally {
+            notificationRepository.save(notification);
         }
 
-        notificationRepository.save(notification);
+
     }
 }

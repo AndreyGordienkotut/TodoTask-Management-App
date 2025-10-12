@@ -1,0 +1,15 @@
+plugins {
+    id 'java'
+}
+
+group = 'by.info_microservice'
+version = '0.0.1-SNAPSHOT'
+
+
+
+
+repositories {
+    mavenCentral()
+}
+
+

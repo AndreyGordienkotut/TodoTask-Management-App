@@ -1,11 +1,9 @@
 package com.userService.controller;
 
+import by.info_microservice.core.LinkTelegramRequest;
 import com.userService.dto.*;
-import com.userService.exception.BadRequestException;
-import com.userService.model.RefreshToken;
 import com.userService.model.User;
 import com.userService.repository.UserRepository;
-import com.userService.service.JwtService;
 import com.userService.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,18 +15,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")

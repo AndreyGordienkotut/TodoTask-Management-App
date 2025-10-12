@@ -1,6 +1,6 @@
 package com.userService.service;
 
-import com.userService.config.NotificationServiceClient;
+import by.info_microservice.core.UserVerificationEventDto;
 import com.userService.dto.*;
 
 import com.userService.model.EmailVerificationTokens;
@@ -39,8 +39,8 @@ public class UserService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenService refreshTokenService;
-    private final NotificationServiceClient notificationServiceClient;
     private final EmailVerificationTokensRepository emailVerificationTokensRepository;
+    private final UserEventProducer userEventProducer;
 
     @Transactional
     public AuthenticationResponseDto register(RegisterRequestDto requestDto) {
@@ -61,21 +61,21 @@ public class UserService {
                 .expiryAt(LocalDateTime.now().plusHours(24))
                 .build();
         emailVerificationTokensRepository.save(emailVerificationTokens);
-        try {
 
-            NotificationServiceRequest notificationRequest = new NotificationServiceRequest(
-                    savedUser.getId(),
-                    savedUser.getEmail(),
-                    "Email verification",
-                    "Hello, " + user.getUsername() + "!\nFollow the link http://localhost:8080/api/auth/verify-email?token="+token,
-                    "EMAIL",
-                    "SENT",
-                    LocalDateTime.now()
-            );
-            notificationServiceClient.sendNotification(notificationRequest);
-        }
-        catch (Exception e) {
-            log.error("Failed to send notification to user with ID {}. Error: {}", user.getId(), e.getMessage(), e);
+        UserVerificationEventDto event = UserVerificationEventDto.builder()
+                .userId(savedUser.getId())
+                .name(savedUser.getUsername())
+                .email(savedUser.getEmail())
+                .telegramChatId(savedUser.getTelegramChatId())
+                .eventType("USER_VERIFICATION_REQUESTED")
+                .createdAt(LocalDateTime.now())
+                .verificationToken(token)
+                .build();
+        try {
+            userEventProducer.sendAccountVerificationEvent(event);
+            log.info("User verification event published for userId={}", savedUser.getId());
+        } catch (Exception e) {
+            log.error("Failed to publish verification event for userId={}. Error: {}", savedUser.getId(), e.getMessage(), e);
         }
         Map<String, Object> extra = new HashMap<>();
         extra.put("userId", user.getId());
@@ -100,7 +100,7 @@ public class UserService {
             );
         } catch (AuthenticationException e) {
             System.err.println("Authentication failed for user " + request.getEmail() + ": " + e.getMessage());
-            throw new BadRequestException("Invalid email or password.");
+            throw new InvalidCredentialsException("Invalid email or password.");
         }
 
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(() -> new UsernameNotFoundException("User not found with email: " +request.getEmail()));
@@ -141,9 +141,9 @@ public class UserService {
     @Transactional
     public void verifyEmail(String token) {
         EmailVerificationTokens emailVerificationTokens = emailVerificationTokensRepository.findByToken(token)
-                .orElseThrow(() -> new BadRequestException("Invalid or expired token."));
+                .orElseThrow(() -> new InvalidTokenException  ("Invalid or expired token."));
         if(emailVerificationTokens.getExpiryAt().isBefore(LocalDateTime.now())) {
-            throw new BadRequestException("Email verification expired.");
+            throw new TokenExpiredException("Email verification expired.");
         }
         if(emailVerificationTokens.isUsed()){
             throw new BadRequestException("Email verification token already used.");
@@ -175,13 +175,13 @@ public UserDto findUserById(Long userId) {
 }
     public void updateTelegramChatId(Long userId, Long chatId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
         user.setTelegramChatId(chatId);
         userRepository.save(user);
     }
     public UserDto getByEmail(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
         return UserDto.builder()
                 .id(user.getId())
                 .name(user.getUsername())
@@ -192,7 +192,7 @@ public UserDto findUserById(Long userId) {
 
     public String generateTelegramToken(User user) {
         User u = userRepository.findById(user.getId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
         String token = UUID.randomUUID().toString();
         u.setTelegramLinkToken(token);
         userRepository.save(u);

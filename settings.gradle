@@ -1,8 +1,9 @@
 rootProject.name = 'task-management-app'
-
+include 'core'
 include 'userService'
 include 'taskService'
 include 'notificationService'
 include 'eureka-server'
+
 
 
