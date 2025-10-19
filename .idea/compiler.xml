@@ -10,6 +10,7 @@
         <module name="task-management-app.notificationService.main" />
         <module name="task-management-app.taskService.main" />
         <module name="task-management-app.userService.main" />
+        <module name="task-management-app.core.main" />
         <module name="task-management-app.eureka-server.main" />
       </profile>
     </annotationProcessing>

@@ -13,3 +13,6 @@ repositories {
 }
 
 
+bootJar {
+    enabled = false
+}

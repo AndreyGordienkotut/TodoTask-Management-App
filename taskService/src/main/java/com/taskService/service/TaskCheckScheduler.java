@@ -26,8 +26,8 @@ public class TaskCheckScheduler {
     private final TaskRepository taskRepository;
     private final UserServiceClient userServiceClient;
     private final TaskEventProducer taskEventProducer;
-    @Scheduled(fixedRate = 60000)
-    @Transactional
+    @Scheduled(fixedRate = 60000, initialDelay = 60000)
+//    @Transactional
     public void checkAllTaskStatuses() {
         LocalDateTime now = LocalDateTime.now().withSecond(0).withNano(0);
         LocalDateTime fifteenMinutesFromNow = now.plusMinutes(15);
