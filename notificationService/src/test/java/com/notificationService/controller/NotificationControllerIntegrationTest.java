@@ -73,7 +73,7 @@ public class NotificationControllerIntegrationTest {
         registry.add("spring.datasource.url", postgresContainer::getJdbcUrl);
         registry.add("spring.datasource.username", postgresContainer::getUsername);
         registry.add("spring.datasource.password", postgresContainer::getPassword);
-        registry.add("application.security.jwt.secret-key", () -> "0c1o5t7vPfsdf42f8yQ9z3a5b6c7d8eF0g1H2i3J7k5L6m7N8o9p0q1R2s3T4u5V6w7X8y9Z0A1B2C3D1E5F6G7H8I9J0K1L2M3N4O5P6Q5R8S9T0U1V2W3X4Y1Z");
+        registry.add("application.security.jwt.secret-key", () -> "12345t7vPfsdf42f8yQ9z3a5b6c7d8eF0g1H2i3J4k5L6m7N8o9p0q1R2s3T4u5V6w7X8y9Z0A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q7R8S9T0U1V2W3X4Y5Z");
         registry.add("application.security.jwt.expiration", () -> "3600000");
         registry.add("application.security.jwt.refresh-token.expiration", () -> "604800000");
         registry.add("application.security.jwt.cookie-name", () -> "jwt_token");
@@ -84,6 +84,7 @@ public class NotificationControllerIntegrationTest {
 
         registry.add("TELEG_USERNAME", () -> "testName");
         registry.add("TELEG_TOKEN", () -> "8128255555:BDE6xV-NoeqUa6XzdrZaQkSlAluTb__IyaQ");
+        registry.add("KAFKA_BOOTSTRAP_SERVERS", () -> "localhost:9092");
     }
 
     @BeforeEach
