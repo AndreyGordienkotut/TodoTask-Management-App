@@ -133,7 +133,6 @@ services:
         condition: service_started
     networks:
       - backend
-
 networks:
   backend:
     driver: bridge
