@@ -64,8 +64,10 @@ test:
   variables:
     # 1. Настройка доступа к DIND
     DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
     TEST_DB_USERNAME: $TEST_DB_USERNAME
     TEST_DB_PASSWORD: $TEST_DB_PASSWORD
+    TEST_DB_URL: $TEST_DB_URL
     TEST_JWT_SECRET: $TEST_JWT_SECRET
     TEST_JWT_EXPIRATION: $TEST_JWT_EXPIRATION
     TEST_JWT_REFRESH_EXPIRATION: $TEST_JWT_REFRESH_EXPIRATION
@@ -84,12 +86,34 @@ test:
     MAIL_SENDER_NAME: $MAIL_SENDER_NAME
     KAFKA_BOOTSTRAP_SERVERS: $KAFKA_BOOTSTRAP_SERVERS
   script:
-    - echo "🧪 Running tests in DIND environment..."
-    # Используем 'docker run' для запуска Gradle, чтобы он видел DIND.
-    # $PWD - это текущая рабочая директория GitLab CI.
-    # ИСПРАВЛЕНИЕ: Команды в sh -c"..." теперь находятся в одной логической строке,
-    # без комментариев и лишних переносов, чтобы Bash не злился.
-    - docker run --rm -v $PWD:/app -w /app gradle:8.4-jdk17 sh -c "chmod +x ./gradlew && ./gradlew test --no-daemon"
+    - echo "🧪 Running tests in DIND environment. Passing all ENV variables to Gradle container..."
+    # Используем 'docker run' для запуска Gradle.
+    # КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Передаем все переменные окружения Testcontainers (-e DOCKER_HOST)
+    # и все переменные окружения Spring Boot (-e TEST_DB_URL, -e MAIL_HOST и т.д.)
+    # Каждая переменная передается явно, чтобы гарантировать, что Spring их увидит.
+    - docker run --rm
+      -v $PWD:/app
+      -w /app
+      -e DOCKER_HOST=$DOCKER_HOST
+      -e DOCKER_TLS_CERTDIR=$DOCKER_TLS_CERTDIR
+      -e TEST_DB_USERNAME=$TEST_DB_USERNAME
+      -e TEST_DB_PASSWORD=$TEST_DB_PASSWORD
+      -e TEST_DB_URL=$TEST_DB_URL
+      -e TEST_JWT_SECRET=$TEST_JWT_SECRET
+      -e TEST_JWT_EXPIRATION=$TEST_JWT_EXPIRATION
+      -e TEST_JWT_REFRESH_EXPIRATION=$TEST_JWT_REFRESH_EXPIRATION
+      -e TELEG_USERNAME=$TELEG_USERNAME
+      -e TELEG_TOKEN=$TELEG_TOKEN
+      -e TEST_TELEG_USERNAME=$TEST_TELEG_USERNAME
+      -e TEST_TELEG_TOKEN=$TEST_TELEG_TOKEN
+      -e MAIL_HOST=$MAIL_HOST
+      -e MAIL_PORT=$MAIL_PORT
+      -e MAIL_USERNAME=$MAIL_USERNAME
+      -e MAIL_PASSWORD=$MAIL_PASSWORD
+      -e MAIL_SENDER=$MAIL_SENDER
+      -e MAIL_SENDER_NAME=$MAIL_SENDER_NAME
+      -e KAFKA_BOOTSTRAP_SERVERS=$KAFKA_BOOTSTRAP_SERVERS
+      gradle:8.4-jdk17 sh -c "chmod +x ./gradlew && ./gradlew test --no-daemon"
   artifacts:
     reports:
       # Путь для отчетов о тестах
