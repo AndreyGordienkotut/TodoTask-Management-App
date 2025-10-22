@@ -12,31 +12,59 @@ stages:
   - deploy
 
 # === BUILD STAGE ===
+#build:
+#  stage: build
+#  image: gradle:8.4-jdk17
+#  script:
+#    - chmod +x ./gradlew
+#    - echo "🔨 Building project..."
+#    - ./gradlew clean build -x test --no-daemon
+#  artifacts:
+#    paths:
+#      - build/libs/
+#  only:
+#    - master
+#    - merge_requests
 build:
   stage: build
   image: gradle:8.4-jdk17
   script:
     - chmod +x ./gradlew
     - echo "🔨 Building project..."
-    - ./gradlew clean build -x test --no-daemon
+    - ./gradlew clean :userService:bootJar :taskService:bootJar :notificationService:bootJar :eureka-server:bootJar --no-daemon
   artifacts:
     paths:
-      - build/libs/
+      - "**/build/libs/"
   only:
     - master
     - merge_requests
 
 # === TEST STAGE ===
+#test:
+#  stage: test
+#  image: gradle:8.4-jdk17
+#  script:
+#    - chmod +x ./gradlew
+#    - echo "🧪 Running tests..."
+#    - ./gradlew test --no-daemon
+#  artifacts:
+#    reports:
+#      junit: build/test-results/test/TEST-*.xml
+#  only:
+#    - master
+#    - merge_requests
 test:
   stage: test
   image: gradle:8.4-jdk17
   script:
+    # *** ИСПРАВЛЕНИЕ ПРАВ: Даем права на исполнение скрипту gradlew ***
     - chmod +x ./gradlew
     - echo "🧪 Running tests..."
+    # Для тестов все еще используем общую команду, которая запустит тесты для всех подмодулей
     - ./gradlew test --no-daemon
   artifacts:
     reports:
-      junit: build/test-results/test/TEST-*.xml
+      junit: build/test-results/**/TEST-*.xml # Изменяем путь для мультимодульного проекта
   only:
     - master
     - merge_requests
