@@ -16,6 +16,7 @@ build:
   stage: build
   image: gradle:8.4-jdk17
   script:
+    - chmod +x ./gradlew
     - echo "🔨 Building project..."
     - ./gradlew clean build -x test --no-daemon
   artifacts:
@@ -30,6 +31,7 @@ test:
   stage: test
   image: gradle:8.4-jdk17
   script:
+    - chmod +x ./gradlew
     - echo "🧪 Running tests..."
     - ./gradlew test --no-daemon
   artifacts:
@@ -46,6 +48,7 @@ docker-build:
   services:
     - docker:dind
   script:
+    - chmod +x ./gradlew
     - echo "🐳 Building Docker images with Docker Compose..."
     - docker compose -f docker-compose.yml build
   only:
