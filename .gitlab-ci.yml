@@ -62,23 +62,22 @@ test:
     # Обязательно для работы Testcontainers (используется как Docker Daemon)
     - docker:dind
   variables:
-    # 1. Настройка доступа к DIND (КРИТИЧНО для Testcontainers)
-    # Используем имя сервиса как DOCKER_HOST
+    # 1. Настройка доступа к DIND
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
-    # 2. Объявляем все переменные, которые будут переданы Spring Boot/Testcontainers
-    # Эти переменные должны быть установлены в Secret Variables GitLab, но
-    # они должны быть объявлены здесь, чтобы быть доступными в 'script'.
     TEST_DB_USERNAME: $TEST_DB_USERNAME
     TEST_DB_PASSWORD: $TEST_DB_PASSWORD
     TEST_DB_URL: $TEST_DB_URL
     TEST_JWT_SECRET: $TEST_JWT_SECRET
     TEST_JWT_EXPIRATION: $TEST_JWT_EXPIRATION
     TEST_JWT_REFRESH_EXPIRATION: $TEST_JWT_REFRESH_EXPIRATION
+
+
     TELEG_USERNAME: $TELEG_USERNAME
     TELEG_TOKEN: $TELEG_TOKEN
     TEST_TELEG_USERNAME: $TEST_TELEG_USERNAME
     TEST_TELEG_TOKEN: $TEST_TELEG_TOKEN
+
     MAIL_HOST: $MAIL_HOST
     MAIL_PORT: $MAIL_PORT
     MAIL_USERNAME: $MAIL_USERNAME
@@ -95,7 +94,7 @@ test:
     - docker run --rm
       -v $PWD:/app
       -w /app
-      -e DOCKER_HOST=$DOCKER_HOST # КРИТИЧНО для Testcontainers
+      -e DOCKER_HOST=$DOCKER_HOST
       -e DOCKER_TLS_CERTDIR=$DOCKER_TLS_CERTDIR
       -e TEST_DB_USERNAME=$TEST_DB_USERNAME
       -e TEST_DB_PASSWORD=$TEST_DB_PASSWORD
@@ -119,11 +118,13 @@ test:
     reports:
       # Путь для отчетов о тестах
       junit: "**/build/test-results/test/TEST-*.xml"
-  # Разрешим Job'у падать временно, если ошибка в логике теста
+  # Разрешим Job'у падать временно, если ошибка в логике теста (Failure - processNotificationAsync)
+  # После устранения логической ошибки, удалите allow_failure: true
   allow_failure: true
   only:
     - master
     - merge_requests
+# === DOCKER BUILD STAGE ===
 docker-build:
   stage: docker
   image: docker:27.0.3
