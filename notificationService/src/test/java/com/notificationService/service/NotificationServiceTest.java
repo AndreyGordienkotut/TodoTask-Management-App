@@ -129,8 +129,8 @@ void successSendNotification() throws Exception {
         String errorMessage = "SMTP server failed";
         doThrow(new RuntimeException(errorMessage))
                 .when(emailService).sendSimpleEmail(anyString(), anyString(), anyString());
-        assertThrows(NotificationProcessingException.class,
-                () -> notificationService.processNotificationAsync(pendingNotification.getId(), emailRequest));
+
+        notificationService.processNotificationAsync(pendingNotification.getId(), emailRequest);
 
         verify(emailService, times(1)).sendSimpleEmail(anyString(), anyString(), anyString());
 

@@ -84,7 +84,7 @@ public class NotificationControllerIntegrationTest {
 
         registry.add("TELEG_USERNAME", () -> "testName");
         registry.add("TELEG_TOKEN", () -> "8128255555:BDE6xV-NoeqUa6XzdrZaQkSlAluTb__IyaQ");
-        registry.add("KAFKA_BOOTSTRAP_SERVERS", () -> "localhost:9092");
+//        registry.add("KAFKA_BOOTSTRAP_SERVERS", () -> "localhost:9092");
     }
 
     @BeforeEach
