@@ -18,7 +18,6 @@ public class UserEventConsumer {
     private final NotificationService notificationService;
     @KafkaListener(topics = "account-verification-events", groupId = "notification-service",containerFactory = "kafkaListenerContainerFactory")
     public void consume(UserVerificationEventDto event) {
-
         log.info("Received user verification event: {}", event);
         NotificationServiceRequest request = NotificationServiceRequest.builder()
                 .userId(event.getUserId())
