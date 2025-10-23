@@ -24,6 +24,10 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 //
 //}
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@EnableAutoConfiguration(exclude = {
+		DataSourceAutoConfiguration.class,
+		HibernateJpaAutoConfiguration.class
+})
 @ActiveProfiles("test")
 class NotificationServiceApplicationTests {
 
