@@ -53,7 +53,6 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     networks:
       - backend
-      -
   # --- APPLICATION SERVICES ---
 
   # 4. SERVICE DISCOVERY (EUREKA)
