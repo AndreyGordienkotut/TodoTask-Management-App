@@ -95,6 +95,7 @@ test:
     # и все переменные окружения Spring Boot (-e TEST_DB_URL, -e MAIL_HOST и т.д.)
     # Каждая переменная передается явно, чтобы гарантировать, что Spring их увидит.
     - docker run --rm
+      -v /var/run/docker.sock:/var/run/docker.sock
       -v $PWD:/app
       -w /app
       -e DOCKER_HOST=$DOCKER_HOST
