@@ -27,20 +27,20 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 //
 //}
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@EnableAutoConfiguration(exclude = {
-		DataSourceAutoConfiguration.class,
-		HibernateJpaAutoConfiguration.class,
-		EurekaClientAutoConfiguration.class,
-		KafkaAutoConfiguration.class
-})
+//@EnableAutoConfiguration(exclude = {
+//		DataSourceAutoConfiguration.class,
+//		HibernateJpaAutoConfiguration.class,
+//		EurekaClientAutoConfiguration.class,
+//		KafkaAutoConfiguration.class
+//})
 @ActiveProfiles("test")
 class NotificationServiceApplicationTests {
 
-	@MockBean
-	private KafkaTemplate<?, ?> kafkaTemplate;
-
-	@MockBean
-	private ProducerFactory<?, ?> producerFactory;
+//	@MockBean
+//	private KafkaTemplate<?, ?> kafkaTemplate;
+//
+//	@MockBean
+//	private ProducerFactory<?, ?> producerFactory;
 
 
 	@MockBean
