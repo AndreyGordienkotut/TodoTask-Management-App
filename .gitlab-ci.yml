@@ -88,6 +88,8 @@ test:
     KAFKA_BOOTSTRAP_SERVERS: $KAFKA_BOOTSTRAP_SERVERS
   script:
     - echo "🧪 Running tests in DIND environment. Passing all ENV variables to Gradle container..."
+    - for i in $(seq 1 10); do docker info && break; echo "Waiting for docker daemon..."; sleep 1; done
+    - echo "DIND is ready. Running tests..."
     # Используем 'docker run' для запуска Gradle.
     # КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Передаем все переменные окружения Testcontainers (-e DOCKER_HOST)
     # и все переменные окружения Spring Boot (-e TEST_DB_URL, -e MAIL_HOST и т.д.)
