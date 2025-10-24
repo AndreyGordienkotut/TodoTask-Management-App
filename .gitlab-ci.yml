@@ -60,7 +60,8 @@ test:
   image: docker:27.0.3
   services:
     # Обязательно для работы Testcontainers (используется как Docker Daemon)
-    - docker:dind
+#    - docker:dind
+    - docker:27.0.3-dind
   variables:
     # 1. Настройка доступа к DIND
     DOCKER_HOST: tcp://docker:2375
