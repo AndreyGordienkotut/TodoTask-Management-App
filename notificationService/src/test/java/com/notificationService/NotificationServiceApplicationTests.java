@@ -1,5 +1,6 @@
 package com.notificationService;
 
+import com.notificationService.repository.NotificationRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
@@ -38,6 +39,10 @@ class NotificationServiceApplicationTests {
 
 	@MockBean
 	private ProducerFactory<?, ?> producerFactory;
+
+
+	@MockBean
+	private NotificationRepository notificationRepository;
 
 	@Test
 	void contextLoads() {
