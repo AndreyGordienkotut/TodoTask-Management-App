@@ -26,13 +26,19 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 //	}
 //
 //}
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+//@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 //@EnableAutoConfiguration(exclude = {
 //		DataSourceAutoConfiguration.class,
 //		HibernateJpaAutoConfiguration.class,
 //		EurekaClientAutoConfiguration.class,
 //		KafkaAutoConfiguration.class
 //})
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@EnableAutoConfiguration(exclude = {
+		DataSourceAutoConfiguration.class,
+		HibernateJpaAutoConfiguration.class,
+		KafkaAutoConfiguration.class
+})
 @ActiveProfiles("test")
 class NotificationServiceApplicationTests {
 
