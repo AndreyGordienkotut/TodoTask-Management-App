@@ -21,6 +21,7 @@ import org.springframework.test.context.ActiveProfiles;
 class TaskServiceApplicationTests {
 	@MockBean
 	private TaskRepository taskRepository;
+
 	@Test
 	void contextLoads() {
 	}
