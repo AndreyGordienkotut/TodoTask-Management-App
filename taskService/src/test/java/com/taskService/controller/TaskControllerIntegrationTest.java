@@ -3,6 +3,7 @@ package com.taskService.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.taskService.TaskServiceApplication;
 import com.taskService.config.TestSecurityConfig;
 import com.taskService.dto.TaskRequestDto;
 import com.taskService.dto.UpdatePriorityRequestDto;
@@ -22,12 +23,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.cloud.netflix.eureka.EurekaClientAutoConfiguration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -53,11 +59,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-@SpringBootTest(properties = "spring.jpa.hibernate.ddl-auto=create")
+@SpringBootTest(classes = TaskServiceApplication.class,properties = "spring.jpa.hibernate.ddl-auto=create")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Testcontainers
 @Import(TestSecurityConfig.class)
+@EnableAutoConfiguration(exclude = {
+        KafkaAutoConfiguration.class,
+        EurekaClientAutoConfiguration.class
+})
 public class TaskControllerIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
@@ -65,6 +75,10 @@ public class TaskControllerIntegrationTest {
     private ObjectMapper objectMapper;
     @Autowired
     private TaskRepository taskRepository;
+    @MockBean
+    private KafkaTemplate<String, Object> kafkaTemplate;
+    @MockBean
+    private ProducerFactory<?, ?> producerFactory;
     private Long preloadedTaskId;
     private final Long USER_ID_1 = 1L;
     private final Long USER_ID_2 = 2L;

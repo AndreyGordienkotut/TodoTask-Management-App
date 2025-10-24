@@ -42,13 +42,6 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 @ActiveProfiles("test")
 class NotificationServiceApplicationTests {
 
-//	@MockBean
-//	private KafkaTemplate<?, ?> kafkaTemplate;
-//
-//	@MockBean
-//	private ProducerFactory<?, ?> producerFactory;
-
-
 	@MockBean
 	private NotificationRepository notificationRepository;
 
