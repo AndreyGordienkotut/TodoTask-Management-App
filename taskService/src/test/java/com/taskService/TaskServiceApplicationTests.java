@@ -19,7 +19,7 @@ import org.springframework.test.context.ActiveProfiles;
 //@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 
 @SpringBootTest(
-		webEnvironment = SpringBootTest.WebEnvironment.NONE
+		webEnvironment = SpringBootTest.WebEnvironment.MOCK
 		// КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Добавляем свойства JWT
 		// Эти свойства необходимы для создания JwtUtil, даже если мы не используем безопасность в тесте
 //		properties = {

@@ -18,26 +18,52 @@ import java.util.List;
 @TestConfiguration
 public class TestSecurityConfig {
 
-    @Bean
-    public OncePerRequestFilter mockJwtFilter() {
-        return new OncePerRequestFilter() {
-            @Override
-            protected void doFilterInternal(HttpServletRequest request,
-                                            HttpServletResponse response,
-                                            FilterChain filterChain) throws IOException, ServletException {
-                UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken("1", null, List.of());
-                SecurityContextHolder.getContext().setAuthentication(auth);
-                filterChain.doFilter(request, response);
-            }
-        };
-    }
+//    @Bean
+//    public OncePerRequestFilter mockJwtFilter() {
+//        return new OncePerRequestFilter() {
+//            @Override
+//            protected void doFilterInternal(HttpServletRequest request,
+//                                            HttpServletResponse response,
+//                                            FilterChain filterChain) throws IOException, ServletException {
+//                UsernamePasswordAuthenticationToken auth =
+//                        new UsernamePasswordAuthenticationToken("1", null, List.of());
+//                SecurityContextHolder.getContext().setAuthentication(auth);
+//                filterChain.doFilter(request, response);
+//            }
+//        };
+//    }
+
+//    @Bean
+//    public SecurityFilterChain filterChain(HttpSecurity http, OncePerRequestFilter mockJwtFilter) throws Exception {
+//        http.csrf(csrf -> csrf.disable())
+//                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+//                .addFilterBefore(mockJwtFilter, UsernamePasswordAuthenticationFilter.class);
+//        return http.build();
+//    }
+@Bean
+public OncePerRequestFilter mockJwtFilter() {
+    return new OncePerRequestFilter() {
+        @Override
+        protected void doFilterInternal(HttpServletRequest request,
+                                        HttpServletResponse response,
+                                        FilterChain filterChain)
+                throws IOException, ServletException {
+            SecurityContextHolder.getContext().setAuthentication(
+                    new UsernamePasswordAuthenticationToken("1", null, List.of())
+            );
+            filterChain.doFilter(request, response);
+        }
+    };
+}
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, OncePerRequestFilter mockJwtFilter) throws Exception {
-        http.csrf(csrf -> csrf.disable())
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           OncePerRequestFilter mockJwtFilter) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .addFilterBefore(mockJwtFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 }
