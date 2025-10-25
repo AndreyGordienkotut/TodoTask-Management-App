@@ -1,9 +1,3 @@
-# --- CI/CD CONFIGURATION FOR GitLab ---
-# Этапы:
-# 1. Сборка Gradle
-# 2. Тестирование
-# 3. Проверка сборки Docker Compose
-# 4. (опционально) Ручной запуск docker-compose up для локальной проверки
 
 stages:
   - build
@@ -11,20 +5,6 @@ stages:
   - docker
   - deploy
 
-# === BUILD STAGE ===
-#build:
-#  stage: build
-#  image: gradle:8.4-jdk17
-#  script:
-#    - chmod +x ./gradlew
-#    - echo "🔨 Building project..."
-#    - ./gradlew clean build -x test --no-daemon
-#  artifacts:
-#    paths:
-#      - build/libs/
-#  only:
-#    - master
-#    - merge_requests
 build:
   stage: build
   image: gradle:8.4-jdk17
@@ -38,33 +18,13 @@ build:
   only:
     - master
     - merge_requests
-
-# === TEST STAGE ===
-#test:
-#  stage: test
-#  image: gradle:8.4-jdk17
-#  script:
-#    - chmod +x ./gradlew
-#    - echo "🧪 Running tests..."
-#    - ./gradlew test --no-daemon
-#  artifacts:
-#    reports:
-#      junit: build/test-results/test/TEST-*.xml
-#  only:
-#    - master
-#    - merge_requests
-# === TEST STAGE (Unit + Integration with Testcontainers/DIND) ===
 test:
   stage: test
-  # Меняем на образ, который умеет работать с Docker (чтобы запустить Testcontainers)
   image: docker:27.0.3
   services:
-    # Обязательно для работы Testcontainers (используется как Docker Daemon)
-#    - docker:27.0.3-dind
     - name: docker:27.0.3-dind
       alias: docker
   variables:
-    # 1. Настройка доступа к DIND
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
     DOCKER_DRIVER: overlay2
@@ -94,10 +54,6 @@ test:
     - echo "🧪 Running tests in DIND environment. Passing all ENV variables to Gradle container..."
     - for i in $(seq 1 15); do docker info && break; echo "Waiting for docker daemon..."; sleep 1; done
     - echo "DIND is ready. Running tests..."
-    # Используем 'docker run' для запуска Gradle.
-    # КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Передаем все переменные окружения Testcontainers (-e DOCKER_HOST)
-    # и все переменные окружения Spring Boot (-e TEST_DB_URL, -e MAIL_HOST и т.д.)
-    # Каждая переменная передается явно, чтобы гарантировать, что Spring их увидит.
     - docker run --rm
       -v /var/run/docker.sock:/var/run/docker.sock
       -v $PWD:/app
@@ -124,15 +80,11 @@ test:
       gradle:8.4-jdk17 sh -c "chmod +x ./gradlew && ./gradlew test --no-daemon"
   artifacts:
     reports:
-      # Путь для отчетов о тестах
       junit: "**/build/test-results/test/TEST-*.xml"
-  # Разрешим Job'у падать временно, если ошибка в логике теста (Failure - processNotificationAsync)
-  # После устранения логической ошибки, удалите allow_failure: true
   allow_failure: true
   only:
     - master
     - merge_requests
-# === DOCKER BUILD STAGE ===
 docker-build:
   stage: docker
   image: docker:27.0.3
@@ -145,7 +97,6 @@ docker-build:
   only:
     - master
 
-# === DEPLOY STAGE (optional, manual) ===
 deploy:
   stage: deploy
   image: docker:27.0.3
