@@ -11,7 +11,18 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 
 //@SpringBootTest
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+//@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+
+@SpringBootTest(
+		webEnvironment = SpringBootTest.WebEnvironment.NONE,
+		// КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Добавляем свойства JWT
+		// Эти свойства необходимы для создания JwtUtil, даже если мы не используем безопасность в тесте
+		properties = {
+				"application.security.jwt.secret-key=a-long-test-secret-key-for-jwt-initialization",
+				"application.security.jwt.expiration=3600000",
+				"application.security.jwt.refresh-token.expiration=604800000"
+		}
+)
 @EnableAutoConfiguration(exclude = {
 		DataSourceAutoConfiguration.class,
 		HibernateJpaAutoConfiguration.class,
