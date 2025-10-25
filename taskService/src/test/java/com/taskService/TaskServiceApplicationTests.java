@@ -28,11 +28,11 @@ import org.springframework.test.context.ActiveProfiles;
 //				"application.security.jwt.refresh-token.expiration=604800000"
 //		}
 )
-//@EnableAutoConfiguration(exclude = {
-//		DataSourceAutoConfiguration.class,
-//		HibernateJpaAutoConfiguration.class,
-//		KafkaAutoConfiguration.class
-//})
+@EnableAutoConfiguration(exclude = {
+		DataSourceAutoConfiguration.class,
+		HibernateJpaAutoConfiguration.class,
+		KafkaAutoConfiguration.class
+})
 @Import(TestSecurityConfig.class)
 @ActiveProfiles("test")
 class TaskServiceApplicationTests {
