@@ -1,5 +1,7 @@
 package com.userService;
 
+import com.userService.repository.EmailVerificationTokensRepository;
+import com.userService.repository.RefreshTokenRepository;
 import com.userService.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -21,6 +23,11 @@ class UserServiceApplicationTests {
 	@MockBean
 	private UserRepository userRepository;
 
+	@MockBean
+	private RefreshTokenRepository refreshTokenRepository;
+
+	@MockBean
+	private EmailVerificationTokensRepository emailVerificationTokensRepository;
 	@Test
 	void contextLoads() {
 	}
