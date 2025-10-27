@@ -104,8 +104,28 @@ deploy:
     - docker:dind
   script:
     - echo "🚀 Starting containers for testing..."
-    - docker compose -f docker-compose.yml up -d
-    - docker ps
+      - echo "MYSQL_DATABASE=task" >> .env
+      - echo "MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD" >> .env
+      - echo "MYSQL_USER=$MYSQL_USER" >> .env
+      - echo "MYSQL_PASSWORD=$MYSQL_PASSWORD" >> .env
+      - echo "DB_URL=$DB_URL" >> .env
+      - echo "DB_USERNAME=$DB_USERNAME" >> .env
+      - echo "DB_PASSWORD=$DB_PASSWORD" >> .env
+      - echo "KAFKA_BOOTSTRAP_SERVERS=$KAFKA_BOOTSTRAP_SERVERS" >> .env
+      - echo "JWT_SECRET=$JWT_SECRET" >> .env
+      - echo "JWT_EXPIRATION=$JWT_EXPIRATION" >> .env
+      - echo "JWT_REFRESH_EXPIRATION=$JWT_REFRESH_EXPIRATION" >> .env
+      - echo "TELEG_USERNAME=$TELEG_USERNAME" >> .env
+      - echo "TELEG_TOKEN=$TELEG_TOKEN" >> .env
+      - echo "MAIL_HOST=$MAIL_HOST" >> .env
+      - echo "MAIL_PORT=$MAIL_PORT" >> .env
+      - echo "MAIL_USERNAME=$MAIL_USERNAME" >> .env
+      - echo "MAIL_PASSWORD=$MAIL_PASSWORD" >> .env
+      - echo "MAIL_SENDER=$MAIL_SENDER" >> .env
+      - echo "MAIL_SENDER_NAME=$MAIL_SENDER_NAME" >> .env
+      
+      - docker compose -f docker-compose.yml up -d
+      - docker ps
   when: manual
   only:
     - master
