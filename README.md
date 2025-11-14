@@ -64,8 +64,6 @@ NotificationService
 Додаткова інформація
 - Реалізовано за трирівневою архітектурою: Controller → Service → Repository
 - Для кожного сервісу було проведена повне модульне та интегроване тестування
-
-![Website Preview](https://raw.githubusercontent.com/AndreyGordienkotut/TodoTask-Management-App/main/images/preview.png)
 - Усі сервіси працюють незалежно та можуть масштабуватись
 - Код організовано з урахуванням SOLID принципів
 - Використано DTO, Mapper та ResponseEntity для API
